@@ -1,3 +1,22 @@
+* Changes in RubyMail 0.6 (released 2002-02-15)
+
+** Multipart MIME support.
+
+*** Mail::Parser now parses arbitrarily nested multipart MIME messages.
+
+*** For the sake of dealing with multipart MIME messages, add the
+    following methods to Mail::Message: preamble, epilogue, multipart?,
+    add_part, decode, part.
+
+** A new Mail::AddressTagger class, for tagging addresses with
+   cryptographically verifiable extensions akin to TMDA.  Requires the
+   hmac-sha1 module from the RAA.  (experimental, I don't currently
+   use this)
+
+** A new Mail::Message#== method.
+
+** A new Mail::Serialize class that can serialize a Mail::Message.
+
 * Changes in RubyMail 0.5 (released 2002-02-02)
 
 ** The rdeliver.rb script is now fully documented.

@@ -10,7 +10,7 @@
 require 'tests/testbase'
 require 'mail/header'
 
-class TestMail__Header < TestBase
+class TestMailHeader < TestBase
 
   def test_AREF # '[]'
     h = Mail::Header.new
@@ -200,6 +200,10 @@ class TestMail__Header < TestBase
       end
     end
 
+    # Test the params argument
+    h = Mail::Header.new
+    h.add("name", "value", nil, 'param1' => 'value1', 'param2' => '+value2')
+    assert_equal('value; param1=value1; param2="+value2"', h['name'])
   end
 
   def test_clear
@@ -541,11 +545,6 @@ class TestMail__Header < TestBase
     length_helper(:size)
   end
 
-
-#   def test_shift
-#     assert_fail("untested")
-#   end
-
   def test_to_a
     h = Mail::Header.new
     assert_equal([ ], h.to_a)
@@ -574,10 +573,6 @@ EOF
     assert_equal("To: matt@example.net\n", h.to_string(false))
     assert_equal(h.to_s, h.to_string(true))
   end
-
-#   def test_unshift
-#     assert_fail("untested")
-#   end
 
   def test_s_new
     h = Mail::Header.new
@@ -631,237 +626,6 @@ EOF
     assert_equal(index + 1, result.length,
 	   "result has too few elements (#{index} < #{result.length})")
   end
-
-#   # Read a header from a file and compare against desired results.
-#   # 'file' is just a filename, 'result' should be as in compare_header
-#   # (above)
-#   def read_header_and_compare(string, result)
-#     tf = Tempfile.new("headers", scratch_dir)
-#     tf.write(string)
-#     tf.flush
-#     tf.seek(0, IO::SEEK_SET)
-
-#     # Here we create an object that only has the API of Object + the
-#     # each_line method.  This way, we can be sure that the
-#     # Mail::Header object uses only each_line to access the data.
-#     proxy = Object.new
-#     proxy.instance_eval {
-#       @file = tf
-#     }
-#     def proxy.each_line
-#       while line = @file.gets
-# 	yield line
-#       end
-#     end
-
-#     h = Mail::Header.new(proxy)
-    
-#     tf.close(true)
-#     compare_header(h, result)
-#   end
-  
-#   def test_AREF()
-#     h = Mail::Header.new
-#     h.add('first', 'this is the first line')
-#     e = assert_exception(TypeError) {
-#       h[Object.new]
-#     }
-#     assert_kind_of(Exception, e)
-#     assert_match(/wanted.*String, got.*Object/, e.message)
-
-#     e = assert_exception(TypeError) {
-#       h[[2,3,4]]
-#     }
-#     assert_kind_of(Exception, e)
-#     assert_match(/wanted.*String, got.*Array/, e.message)
-
-#     h = Mail::Header.new
-#     h.add('duplicate', 'this is the first of two')
-#     h.add('duplicate', 'this is the second of two')
-#     assert_equal("duplicate: this is the first of two\n", h['duplicate'])
-#     assert_equal("this is the first of two\n", h.get('duplicate'))
-
-#     assert_equal("duplicate: this is the first of two\n", h[-2])
-#     assert_equal("duplicate: this is the second of two\n", h[-1])
-#     assert_equal(nil, h[-3])
-#     assert_equal(nil, h[2])
-#   end
-  
-
-#   def test_basic_headers()
-#     expected = [
-#       [ 'from', 'From: test@example.com' + "\n", "test@example.com\n" ]
-#     ]
-#     data = <<EOF
-# From: test@example.com
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', "From: test@example.com\n", "test@example.com\n" ],
-#       [ 'to', "To: someguy@example.com\n", "someguy@example.com\n" ],
-#     ]
-#     data = <<EOF
-# From: test@example.com
-# To: someguy@example.com
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', "frOm: test@example.com\n", "test@example.com\n" ],
-#       [ 'to', "tO: someguy@example.com\n", "someguy@example.com\n" ],
-#       [ 'rtfm-url-helper', "rTFm-uRL-helper: http://www.faqs.org\n",
-# 	"http://www.faqs.org\n" ]
-#     ]
-#     data = <<EOF
-# frOm: test@example.com
-# tO: someguy@example.com
-# rTFm-uRL-helper: http://www.faqs.org
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', "frOm: test@example.com\n", "test@example.com\n" ],
-#       [ 'to', "tO: someguy@example.com,\n someotherguy@example.com\n",
-# 	"someguy@example.com,\n someotherguy@example.com\n" ],
-#       [ 'rtfm-url-helper', "rTFm-uRL-helper: http://www.faqs.org\n",
-# 	"http://www.faqs.org\n" ]
-#     ]
-#     data = <<EOF
-# frOm: test@example.com
-# tO: someguy@example.com,
-#  someotherguy@example.com
-# rTFm-uRL-helper: http://www.faqs.org
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', "frOm: test@example.com\n", "test@example.com\n" ],
-#       [ 'to', "tO: someguy@example.com,\n  someotherguy@example.com,\n" +
-# 	"  \n  thirdguy@example.com\n",
-# 	"someguy@example.com,\n  someotherguy@example.com,\n" +
-# 	"  \n  thirdguy@example.com\n"],
-#       [ 'rtfm-url-helper', "rTFm-uRL-helper: http://www.faqs.org\n",
-# 	"http://www.faqs.org\n" ]
-#     ]
-#     data = <<EOF
-# frOm: test@example.com
-# tO: someguy@example.com,
-#   someotherguy@example.com,
-  
-#   thirdguy@example.com
-# rTFm-uRL-helper: http://www.faqs.org
-
-# EOF
-#     read_header_and_compare(data, expected)    
-#   end
-
-#   def test_bogus_headers()
-#     expected = [
-#       [ 'from', 'From: test@example.test' + "\n", "test@example.test\n" ]
-#     ]
-#     data = <<EOF
-# From: test@example.test
-# "this is not a real header"
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', 'From: test@example.com' + "\n", "test@example.com\n" ],
-#       [ 'subject', 'Subject: a subject' + "\n", "a subject\n" ]
-#     ]
-#     data = <<EOF
-# From: test@example.com
-# "this is not a real header"
-# Subject: a subject
-
-# EOF
-#     read_header_and_compare(data, expected)
-
-#     expected = [
-#       [ 'from', 'From: test@example.com' + "\n", "test@example.com\n" ],
-#       [ 'subject', 'Subject: a subject' + "\n", "a subject\n" ]
-#     ]
-#     data = <<EOF
-# From: test@example.com
-# "this is not a real header"
-#     also not a real header
-# Subject: a subject
-
-# EOF
-#     read_header_and_compare(data, expected)
-#   end
-
-#   def test_add()
-#     h = Mail::Header.new
-#     h.add('first', 'this is the first line')
-#     assert_equal("first: this is the first line\n", h['first:'],
-# 		 "fetch of h['first:'] failed")
-#     assert_equal("first: this is the first line\n", h['First'],
-# 		 "fetch of h['First'] failed")
-#     h.add('second:', 'this is the second line')
-#     assert_equal("second: this is the second line\n", h['SeCoND:'],
-# 		 "basic add failed")
-#     h.add('third  :', "this is the third line\n")
-#     assert_equal("third: this is the third line\n", h['third'],
-# 		 "basic add failed")
-    
-#     expected = [
-#       [ 'first', "first: this is the first line\n",
-# 	"this is the first line\n" ],
-#       [ 'second', "second: this is the second line\n",
-# 	"this is the second line\n" ],
-#       [ 'third', "third: this is the third line\n",
-# 	"this is the third line\n" ]
-#     ]
-#     compare_header(h, expected)
-
-#     # text field name (tag) extraction from the line
-#     h.add(nil, "Fourth: this is the fourth line")
-#     expected.push(['fourth', "Fourth: this is the fourth line\n",
-# 		  "this is the fourth line\n"])
-#     compare_header(h, expected)
-
-#     # insert in the middle
-#     h.add(nil, "just-after-first: this is just after the first", 1)
-#     expected[1,0] = [
-#       ['just-after-first',
-# 	"just-after-first: this is just after the first\n",
-# 	"this is just after the first\n" ]
-#     ]
-#     compare_header(h, expected)
-
-#     # insert at the very beginning
-#     h.add(nil, "new-first: this the new first", 0)
-#     expected.unshift(['new-first', "new-first: this the new first\n",
-# 		       "this the new first\n"])
-#     compare_header(h, expected)
-
-#     # lame way to append
-#     h.add(nil, "last: this is the last header", 999)
-#     expected.push(['last', "last: this is the last header\n",
-# 		  "this is the last header\n"])
-#     compare_header(h, expected)
-
-#     # append a folded line
-#     h.add(nil, "tO: someguy@example.com,\n someotherguy@example.com\n")
-#     expected.push(['to',
-# 		    "tO: someguy@example.com,\n someotherguy@example.com\n",
-# 		    "someguy@example.com,\n someotherguy@example.com\n"])
-#     compare_header(h, expected)
-
-#     # APPEND an invalid line
-#     assert_exception(ArgumentError, "failed to detect invalid line") {
-#       h.add(nil,
-# 	    "invalid: someguy@example.com,\nsomeotherguy@example.com\n")
-#     }
-#     compare_header(h, expected)
-#   end
 
   def verify_match(header, name, regexp, expected_result)
     h = header.match(name, regexp)
@@ -961,4 +725,228 @@ EOF
     assert_equal(true, h.match?(/^(to|cc|resent-to)/i, /.*/im))
   end
 
+  def test_content_type
+    h = Mail::Header.new
+    assert_equal(nil, h.content_type)
+
+    h['content-type'] = ' text/html; charset=ISO-8859-1'
+    assert_equal("text/html", h.content_type)
+
+    h.delete('content-type')
+    h['content-type'] = ' foo/html   ; charset=ISO-8859-1'
+    assert_equal("foo/html", h.content_type)
+  end
+
+  def test_media_type
+    h = Mail::Header.new
+    assert_nil(h.media_type)
+    assert_equal("foo", h.media_type("foo"))
+    assert_equal("bar", h.media_type("foo") { "bar" })
+
+    h['content-type'] = ' text/html; charset=ISO-8859-1'
+    assert_equal("text", h.media_type)
+
+    h.delete('content-type')
+    h['content-type'] = 'foo/html   ; charset=ISO-8859-1'
+    assert_equal("foo", h.media_type)
+  end
+
+  def test_subtype
+    h = Mail::Header.new
+    assert_nil(h.subtype)
+    assert_equal("foo", h.subtype("foo"))
+    assert_equal("bar", h.subtype("foo") { "bar" })
+
+    h['content-type'] = ' text/html; charset=ISO-8859-1'
+    assert_equal("html", h.subtype)
+
+    h.delete('content-type')
+    h['content-type'] = 'foo/yoda   ; charset=ISO-8859-1'
+    assert_equal("yoda", h.subtype)
+  end
+
+  def test_params
+    begin
+      h = Mail::Header.new
+      assert_nil(h.params('foo'))
+      assert_nil(h.params('foo', nil))
+
+      default = "foo"
+      ignore = "ignore"
+      assert_same(default, h.params('foo', default))
+      assert_same(default, h.params('foo') { |field_name|
+                    assert_equal('foo', field_name)
+                    default
+                  })
+      assert_same(default, h.params('foo', ignore) {
+                    default
+                  })
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'attachment;
+	filename="delete_product_recover_flag.cmd"'
+      assert_equal( { "filename" => "delete_product_recover_flag.cmd" },
+                   h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'attachment;
+	filename="delete=_product=_recover;_flag;.cmd"'
+      assert_equal( { "filename" => "delete=_product=_recover;_flag;.cmd" },
+                   h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = '  attachment  ;
+	filename  =  "trailing_Whitespace.cmd"  '
+      assert_equal( { "filename" => "trailing_Whitespace.cmd" },
+                   h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = ''
+      assert_equal({}, h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = '   '
+      assert_equal({}, h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = '='
+      assert_equal({}, h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'ass; param1 = "p1"; param2 = "p2"'
+      assert_equal({ 'param1' => 'p1',
+                     'param2' => 'p2' }, h.params('content-disposition'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'ass; Foo = "" ; bar = "asdf"'
+      assert_equal({ "foo" => '""',
+                     "bar" => "asdf" }, h.params('content-disposition'))
+    end
+  end
+
+  def test_set_boundary
+    begin
+      h = Mail::Header.new
+      h.set_boundary("b")
+      assert_equal("b", h.param('content-type', 'boundary'))
+      assert_equal("multipart/mixed", h.content_type)
+      assert_equal('multipart/mixed; boundary=b', h['content-type'])
+    end
+
+    begin
+      h = Mail::Header.new
+      h['content-type'] = "multipart/alternative"
+      h.set_boundary("b")
+      assert_equal("b", h.param('content-type', 'boundary'))
+      assert_equal("multipart/alternative", h.content_type)
+      assert_equal('multipart/alternative; boundary=b', h['content-type'])
+    end
+
+    begin
+      h = Mail::Header.new
+      h['content-type'] = 'multipart/alternative; boundary="a"'
+      h.set_boundary("b")
+      assert_equal("b", h.param('content-type', 'boundary'))
+      assert_equal("multipart/alternative", h.content_type)
+      assert_equal('multipart/alternative; boundary=b', h['content-type'])
+    end
+
+  end
+
+  def test_params_random_string
+#     find_shortest_failure("],C05w\010O\e]b\">%\023[1{:L1o>B\"|\024fDJ@u{)\\\021\t\036\034)ZJ\034&/+]owh=?{Yc)}vi\000\"=@b^(J'\\,O|4v=\"q,@p@;\037[\"{!Dg*(\010\017WQ]:Q;$\004x]\032\035\003a#\"=;\005@&\003:;({>`y{?<X\025vb\032\037\"\"K8\025u[cb}\001;k', k\a/?xm1$\n_?Z\025t?\001,_?O=\001\003U,Rk<\\\027w]j@?J(5ybTb\006\0032@@4\002JP W,]EH|]\\G\e\003>.p/\022jP\f/4U)\006+\022(<{|.<|]]\032.,N,\016\000\036T,;\\49C>C[{b[v") { |str|
+#       h = Mail::Header.new
+#       h['header'] = str
+#       h.params('header')
+#     }
+
+    0.upto(25) {
+      specials = '()<>@,;:\\"/[]?='
+      strings = [(0..rand(255)).collect {rand(127).chr}.to_s,
+	(0..255).collect {rand(255).chr}.to_s,
+	(0..255).collect {
+	  r = rand(specials.length * 5)
+	  case r
+	  when 0 .. specials.length - 1
+	    specials[r].chr
+	  else
+	    rand(127).chr
+	  end
+	}.to_s ]
+      strings.each {|string|
+	assert_no_exception("failed for string #{string.inspect}") {
+          h = Mail::Header.new
+          h['header'] = string
+          params = h.params('header')
+          params.each { |name, value|
+            assert_kind_of(String, name)
+            assert(! ("" == name) )
+            assert_kind_of(String, value)
+          }
+	}
+      }
+    }
+  end
+
+  def test_param
+    begin
+      h = Mail::Header.new
+      assert_nil(h.param('bar', 'foo'))
+      assert_nil(h.param('bar', 'foo', nil))
+
+      default = "foo"
+      ignore = "ignore"
+      assert_same(default, h.param('bar', 'foo', default))
+      assert_same(default, h.param('bar', 'foo') { |field_name, param_name|
+                    assert_equal('bar', field_name)
+                    assert_equal('foo', param_name)
+                    default
+                  })
+      assert_same(default, h.param('bar', 'foo', ignore) {
+                    default
+                  })
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'attachment;
+	filename="delete_product_recover_flag.cmd"'
+      assert_equal('delete_product_recover_flag.cmd',
+                   h.param('content-disposition',
+                           'filename'))
+      assert_nil(h.param('content-disposition', 'notthere'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = 'attachment;
+	filename="delete=_product=_recover;_flag;.cmd"'
+      assert_equal("delete=_product=_recover;_flag;.cmd",
+                   h.param('content-disposition', 'filename'))
+    end
+
+    begin
+      h = Mail::Header.new
+      h['Content-Disposition'] = '  attachment  ;
+	filename  =  "  trailing_Whitespace.cmd  "  '
+      assert_equal("  trailing_Whitespace.cmd  ",
+                   h.param('content-disposition', 'filename'))
+    end
+  end
 end

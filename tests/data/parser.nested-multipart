@@ -1,0 +1,75 @@
+Return-Path: <matt@lickey.com>
+Delivered-To: matt@lickey.com
+Received: from localhost (localhost [127.0.0.1])
+	by squeaker.lickey.com (Postfix) with ESMTP id 78B08C0BE
+	for <matt@lickey.com>; Thu,  7 Feb 2002 19:35:13 -0700 (MST)
+Received: by squeaker.lickey.com (Postfix, from userid 1000)
+	id 52497BE6D; Thu,  7 Feb 2002 19:35:12 -0700 (MST)
+To: matt@lickey.com
+Subject: Some nested multiparts
+From: Matt Armstrong <matt@lickey.com>
+Date: Thu, 07 Feb 2002 19:35:11 -0700
+X-Gnus-Mail-Source: directory:~/.incoming
+Message-ID: <877kpolmzk.fsf@squeaker.lickey.com>
+User-Agent: Gnus/5.090006 (Oort Gnus v0.06) Emacs/21.1
+ (i386-debian-linux-gnu)
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+X-Virus-Scanned: by AMaViS snapshot-20010714
+Lines: 45
+Xref: squeaker.lickey.com inbox:7709
+
+This is level 1's preamble.
+
+--=-=-=
+
+Let's see here.
+
+--=-=-=
+Content-Disposition: inline
+
+This is the first part.
+
+--=-=-=
+Content-Type: multipart/mixed; boundary="==-=-="
+
+This is level 2's preamble.
+
+--==-=-=
+Content-Disposition: inline
+
+This is the first nested part.
+
+--==-=-=
+Content-Disposition: inline
+
+This is the second nested part.
+
+--==-=-=
+Content-Type: multipart/mixed; boundary="===-=-="
+
+This is level 3's preamble.
+
+--===-=-=
+
+This is the first doubly nested part.
+
+--===-=-=
+Content-Disposition: inline
+
+This is the second doubly nested part.
+
+--===-=-=--
+This is level 3's epilogue.
+
+--==-=-=--
+This is level 2's epilogue.  It has no trailing end of line.
+--=-=-=
+Content-Disposition: inline
+
+This is the third part.
+
+--=-=-=--
+
+This is level 1's epilogue.
+

@@ -1,0 +1,139 @@
+# -*- ruby -*-
+h = $lda.header
+
+#
+# Put off-site e-mail through some serious tests before accepting...
+#
+# sneakemail login: matta
+# sneakemail passw: mistera
+#
+
+def log(s)
+  $lda.log(1, s)
+end
+
+def save(folder, continue = false)
+  $lda.save(".incoming/#{folder}.spool", continue)
+end
+
+# This function checks if a given +ip+ is listed by the indicated DNS
+# blackhole list +service+.  It returns a text string indicating why
+# the ip was blocked if listed, or nil if not listed.
+#
+# This function relies on the 'host' external command.
+def dnsbl(ip, service)
+  if ip =~ /\A\d+\.\d+\.\d+\.\d+\z/
+    ip.untaint
+  end
+  raise "bad ip #{ip.inspect}" if ip.tainted?
+  query = ip.split(/\./).reverse.join('.') + '.' + service
+  result = `host -t txt #{query} 2> /dev/null`
+  return nil unless $? == 0
+  unless result =~ /\"(.*)\"/m
+    raise "can't find text record in ${result.inspect}"
+  end
+  return "#{service} lists ip #{ip}: " + $1
+end
+
+load '.pmail/lists.rb'
+
+# backup everything
+$lda.save('.incoming/backup-' + Time.now.strftime('%Y-%V'), true)
+
+
+# Check if we got this through bigfoot and bounce it if it looks
+# suspicious.
+if h.match?('delivered-to', /matt\+bigfoot@lickey\.com/) &&
+    h.match?('received', /from.*by.*bigfoot\.com.*LiteMail/m)
+  temp = h.match('received', /from.*by.*bigfoot\.com.*LiteMail/m)[0]
+  log(temp)
+  if temp =~ /\(\[([\d\.]+)\]\)/
+    ip = $1
+    raise if defined? blocked
+    log("bigfoot ip is #{ip}")
+    blocked ||= dnsbl(ip, 'relays.ordb.org')
+    blocked ||= dnsbl(ip, 'inputs.orbz.org')
+    blocked ||= dnsbl(ip, 'bl.spamcop.net')
+    $lda.reject(blocked) unless blocked.nil?
+  end
+  $lda.defer("from bigfoot")
+end
+
+#
+# Attempt to do RBL lookups on bigfoot.com mail
+#
+#:0
+#* ^Delivered-To: matt\+bigfoot@lickey\.com
+#* ^\/Received: from .*by.*bigfoot.com.*LiteMail
+#{
+#    :0
+#    * MATCH ?? ^Received:.*\[\/[0-9.]+
+#    {
+#	RBIP=$MATCH
+#	LOG="rblcheck: checking IP $RBIP$NL"
+#
+#	:0
+#	* ! ? rblcheck -q -c -s relays.ordb.org -s inputs.orbz.org $RBIP
+#	{
+#	    LOG="is in a DNS blacklist"
+#
+#	    EXITCODE=77
+#
+#	    # This is a way to send output to the mailer.
+#	    :0 fhbi
+#	    | echo -n "Sorry, your e-mail was sent through an open relay"
+#	    :0 w
+#	    |
+#
+#	}
+#    }
+#}
+
+# :0c
+# * ^From: relaytest@lickey.com
+# * ^Subject: open relay test for
+# ! qspam@orbz.org, relays@ordb.org
+
+if h.match?('x-ml-name', /ruby-dev/)
+  $lda.pipe('cat > /dev/null')
+end
+
+if h.match?('from', /matt@lickey\.com/) &&
+    h.match?('subject', /testme bounce/)
+  $lda.reject("You want to test a bounce?  I'll give you a bounce!")
+end
+
+if h.match?('delivered-to', /matt\+bmi@lickey\.com/)
+  if h.match?('sender', /bluemug-installs-admin@bluemug.com/)
+    save('bmi.installs')
+  end
+
+  if h.match?('subject', /PERFORCE change.*for review/)
+    save('bmi.installs')
+  end
+
+  # FIXME: need equivalent of a regexp selection over field names
+  # so I can do to and cc here
+  if h.match?('to', /v291-installs@geoworks\.bluemug\.com/i)
+    save('bmi.installs')
+  end
+
+  save('bmi')
+end
+  
+if h.match?('from', /Cron Daemon|root@lickey\.com|uucp@lickey\.com/)
+  $lda.save(".incoming/daemons.spool")
+end
+
+# FIXME: need a simpler forward mechanism
+if h.match?('from', /relaytest@lickey.com/) &&
+    h.match?('subject', /open relay test for/)
+  $lda.pipe("/usr/sbin/sendmail -oi qspam@orbz.org relays@ordb.org")
+end
+
+if h.match?('from', /matt@lickey\.com/) &&
+    h.match?('subject', /forward test/)
+  $lda.pipe("/usr/sbin/sendmail -oi matt+speakeasy@lickey.com")
+end
+
+$lda.save(".incoming/inbox.spool")

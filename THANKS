@@ -1,0 +1,24 @@
+Thanks to Python's email module for:
+
+    - The idea of separating parsing and serialization from the mail
+      classes themselves.
+    - A lot of the MIME multipart API.
+
+Thanks to Perl's MimeTools for:
+
+    - Showing me this can all be done in the scripting language (no C
+      extensions necessary).
+    - Accessing MIME parts via a File like API (thereby allowing them
+      to be stored on disk).
+
+Thanks to TMDA for:
+
+    - The idea of tacking on an HMAC to address extensions
+      (Mail::AddressTagger).
+    - Inspiring me to write Mail::KeyedMailbox, which can be used for
+      simple TMDA-style confirmation queues.
+
+
+Local Variables:
+mode : indented-text
+End:

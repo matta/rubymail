@@ -1010,43 +1010,6 @@ class TestMailAddress < TestBase
 
   end
 
-  def call_fails(arg, &block)
-    begin
-      yield arg
-    rescue
-      return true
-    end
-    return false
-  end
-
-  # if a random string failes, run it through this function to find the
-  # shortest fail case
-  def find_shortest_failure(arg, &block)
-    unless call_fails(arg, &block)
-      nil
-    else
-      # Chop off stuff from the beginning and then the end
-      # until it stops failing
-      bad = arg
-      0.upto(bad.length) {|index|
-	bad.length.downto(1) {|length|
-	  begin
-	    loop {
-	      s = bad.dup
-	      s[index,length] = ''
-	      break if bad == s
-	      break unless call_fails(s, &block)
-	      bad = s
-	    }
-	  rescue IndexError
-	    break
-	  end
-	}
-      }
-      raise "shortest failure is #{bad.inspect}"
-    end
-  end
-
   def test_random_strings
 
     # These random strings have generated exceptions before, so test
@@ -1058,7 +1021,7 @@ class TestMailAddress < TestBase
 #     find_shortest_failure("\276\231J.^\351I:\2564") { |s|
 #       Mail::Address.parse(s)
 #     }
-    
+
     0.upto(25) {
       specials = ',;\\()":@<>'
       strings = [(0..rand(255)).collect {rand(127).chr}.to_s,

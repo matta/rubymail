@@ -1,0 +1,17 @@
+1 Preamble1
+2 Premable2
+--X
+3 Part1 first
+4 Part1 second
+--X
+5 Part2 first
+6 Part2 second
+--Y
+7 This is in Y
+--Y--
+8 Y epilogue.
+--X
+9 Part3 first
+10 Part3 second
+--X--
+11 This is the final epilogue.

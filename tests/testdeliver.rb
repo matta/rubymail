@@ -260,7 +260,7 @@ And it even ends with one.
     newdir_re = Regexp.escape(File.join(dir, 'new'))
     hostname_re = Regexp.escape(Socket::gethostname)
     pid_re = Regexp.escape(Process::pid.to_s)
-    assert_match(/#{newdir_re}\/\d+\.#{pid_re}_0\.#{hostname_re}$/,
+    assert_match(/#{newdir_re}\/\d+\.#{pid_re}_\d+\.#{hostname_re}$/,
                  delivered_to)
     /#{newdir_re}\/(\d+)/ =~ delivered_to
     assert_operator(10, '>', Time.now.to_i - Integer($1).to_i)

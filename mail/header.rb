@@ -6,12 +6,12 @@
    above copyright notice is included.
 =end
 
+require 'mail/utils'
+
 module Mail
 
   # A class that supports the reading, writing and manipulation of
   # RFC2822 mail headers.
-  #
-  # FIXME: missing a delete method.  Doh!
 
   # =Overview
   #
@@ -47,11 +47,6 @@ module Mail
   # stored in the object.
   class Header
     include Enumerable
-
-    # FIXME, document methadology for this (RFC2822)
-    # FIXME: may don't need these
-    FIELD_NAME = '[^\x00-\x1f\x7f-\xff :]+:';
-    EXTRACT_FIELD_NAME_RE = /\A(#{FIELD_NAME}|From )/o
 
     FIELD = Struct::new(:name, :value)
 
@@ -129,7 +124,7 @@ module Mail
     # block is returned.  If no block is passed, the value of
     # +default_value+ is returned.  If no +default_value+ is
     # specified, an IndexError exception is raised.
-    def fetch name, *rest
+    def fetch(name, *rest)
       if rest.length > 1
         raise ArgumentError, "wrong # of arguments(#{rest.length + 1} for 2)"
       end
@@ -182,7 +177,7 @@ module Mail
     alias key? field?
 
     # Deletes all fields with +name+.  Returns self.
-    def delete name
+    def delete(name)
       name = field_name_format(name.to_s)
       delete_if { |n, v|
         field_name_format(n) == name
@@ -191,7 +186,7 @@ module Mail
     end
 
     # Deletes the field at the specified index and returns its value.
-    def delete_at index
+    def delete_at(index)
       @fields[index, 1] = nil
       self
     end
@@ -281,10 +276,43 @@ module Mail
     # header, otherwise it is inserted at the specified index.
     # E.g. an +index+ of 0 will prepend the header line.
     #
+    # You can pass additional parameters for the header as a hash
+    # table +params+.  Every key of the hash will be the name of the
+    # parameter, and every key's value the parameter value.
+    #
+    # E.g.
+    #
+    #    header.add('Content-Type', 'multipart/mixed', nil,
+    #               'boundary' => 'the boundary')
+    #
+    # will add this header
+    #
+    #    Content-Type: multipart/mixed; boundary="the boundary"
+    #
     # Always returns self.
-    def add(name, value, index = nil)
+    def add(name, value, index = nil, params = nil)
+
+      value = value.to_s
+      if params
+        value = value.dup
+        sep = "; "
+        params.each do |n, v|
+          value << sep
+          value << n.to_s
+          value << '='
+          v = v.to_s
+          if v =~ /^\w+$/
+            value << v
+          else
+            value << '"'
+            value << v
+            value << '"'
+          end
+        end
+      end
+
       field = FIELD.new(field_name_strip(name.to_s).freeze,
-                        value.to_s.freeze)
+                        value.freeze)
       index ||= @fields.length
       @fields[index, 0] = field
       self
@@ -330,7 +358,9 @@ module Mail
         s << "\n" unless @mbox_from[-1] == ?\n
       end
       each { |n, v|
-        s << n << ": " << v
+        s << n
+        s << ': '
+        s << v
         s << "\n" unless v[-1] == ?\n
       }
       s
@@ -380,11 +410,134 @@ module Mail
     # Gets the "From " line previously set with mbox_from=, or nil.
     attr_reader :mbox_from
 
+    # This returns the full content type of this message converted to
+    # lower case.  If the header does not contain a content-type
+    # field, it returns the default content type of <tt>text/plain;
+    # charset=us-ascii</tt>.
+    def content_type(default = nil)
+      if value = self['content-type']
+	value.strip.split(/\s*;\s*/)[0].downcase
+      else
+	if block_given? then yield else default end
+      end
+    end
+
+    # This returns the main media type for this message converted to
+    # lower case.  This is the first portion of the content type.
+    # E.g. a content type of <tt>text/plain</tt> has a media type of
+    # <tt>text</tt>.
+    def media_type(default = nil)
+      if value = content_type
+        value.split('/')[0]
+      else
+        if block_given? then yield else default end
+      end
+    end
+
+    # This returns the media subtype for this message, converted to
+    # lower case.  This is the second portion of the content type.
+    # E.g. a content type of <tt>text/plain</tt> has a media subtype
+    # of <tt>plain</tt>.
+    def subtype(default = nil)
+      if value = content_type
+        value.split('/')[1]
+      else
+        if block_given? then yield else default end
+      end
+    end
+
+    # This returns a hash of parameters.  Each key in the hash is the
+    # name of the parameter in lower case and each value in the hash
+    # is the unquoted parameter value.  If a parameter has no value,
+    # its value in the hash will be +true+.
+    #
+    # If the field or parameter does not exist or it is malformed in a
+    # way that makes it impossible to parse, then the return value of
+    # the passed block is executed.  If no block is passed, the
+    # +default+ value is returned.
+    def params(field_name, default = nil)
+      if params = params_quoted(field_name)
+        params.each { |name, value|
+          params[name] = value ? Utils.unquote(value) : nil
+        }
+      else
+	if block_given? then yield field_name else default end
+      end
+    end
+
+    # This returns the parameter value for the given parameter in the
+    # given field.  The value returned is unquoted.
+    #
+    # If the field or parameter does not exist or it is malformed in a
+    # way that makes it impossible to parse, then the return value of
+    # the passed block is executed.  If no block is passed, the
+    # +default+ value is returned.
+    def param(field_name, param_name, default = nil)
+      if field?(field_name)
+        params = params_quoted(field_name)
+        value = params[param_name]
+        return Utils.unquote(value) if value
+      end
+      if block_given? then yield field_name, param_name else default end
+    end
+
+    # Set the boundary parameter of this message's Content-Type:
+    # header.
+    def set_boundary(boundary)
+      params = params_quoted('content-type')
+      params ||= {}
+      params['boundary'] = boundary
+      content_type = content_type()
+      content_type ||= "multipart/mixed"
+      delete('Content-Type')
+      add('Content-Type', content_type, nil, params)
+    end
+
     protected
 
     attr :fields, true
 
     private
+
+    PARAM_SCAN_RE = %r{
+        ;
+          |
+        [^;"]*"(?:|.*?(?:[^\\]|\\\\))"\s*   # fix fontification "
+          |
+        [^;]+
+    }x
+
+    NAME_VALUE_SCAN_RE = %r{
+        =
+          |
+        [^="]*"(?:.*?(?:[^\\]|\\\\))"   # fix fontification "\s*
+          |
+        [^=]+
+    }x
+
+    def params_quoted(field_name, default = nil)
+      if value = self[field_name]
+        params = {}
+        first = true
+	value.scan(PARAM_SCAN_RE) do |param|
+          if param != ';'
+            unless first
+              name, value = param.scan(NAME_VALUE_SCAN_RE).collect do |p|
+                if p == '=' then nil else p end
+              end.compact
+              if name && (name = name.strip.downcase) && name.length > 0
+                params[name] = (value || '').strip
+              end
+            else
+              first = false
+            end
+          end
+        end
+        params
+      else
+	if block_given? then yield field_name else default end
+      end
+    end
 
     def field_name_strip(field_name)
       field_name.sub(/\s*:.*/, '')

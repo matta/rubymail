@@ -1,0 +1,65 @@
+Return-Path: <matt@lickey.com>
+Delivered-To: matt@lickey.com
+Received: from localhost (localhost [127.0.0.1])
+	by squeaker.lickey.com (Postfix) with ESMTP id B9ED0C0E7
+	for <matt@lickey.com>; Sun, 10 Feb 2002 14:35:43 -0700 (MST)
+Received: by squeaker.lickey.com (Postfix, from userid 1000)
+	id BE69CC0D1; Sun, 10 Feb 2002 14:35:37 -0700 (MST)
+To: matt@lickey.com
+Subject: Example of a message/rfc822 part.
+From: Matt Armstrong <matt@lickey.com>
+Date: Sun, 10 Feb 2002 14:35:37 -0700
+X-Gnus-Mail-Source: directory:~/.incoming
+Message-ID: <87heop10ly.fsf@squeaker.lickey.com>
+User-Agent: Gnus/5.090006 (Oort Gnus v0.06) Emacs/21.1
+ (i386-debian-linux-gnu)
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+X-Virus-Scanned: by AMaViS snapshot-20010714
+Lines: 44
+Xref: squeaker.lickey.com inbox:7729
+
+--=-=-=
+
+Below is an example of a message/rfc822 MIME part.
+
+
+--=-=-=
+Content-Type: message/rfc822
+Content-Disposition: inline
+
+Return-Path: <matt@lickey.com>
+Delivered-To: matt@lickey.com
+Received: from localhost (localhost [127.0.0.1])
+	by squeaker.lickey.com (Postfix) with ESMTP id 5F0B4C0E7
+	for <matt@lickey.com>; Sun, 10 Feb 2002 14:34:31 -0700 (MST)
+Received: by squeaker.lickey.com (Postfix, from userid 1000)
+	id F0DABC0D1; Sun, 10 Feb 2002 14:34:29 -0700 (MST)
+To: matt@lickey.com
+Subject: This is a short, simple message.
+From: Matt Armstrong <matt@lickey.com>
+Date: Sun, 10 Feb 2002 14:34:29 -0700
+Message-ID: <87n0yh10nu.fsf@squeaker.lickey.com>
+User-Agent: Gnus/5.090006 (Oort Gnus v0.06) Emacs/21.1
+ (i386-debian-linux-gnu)
+X-Virus-Scanned: by AMaViS snapshot-20010714
+Lines: 5
+Xref: squeaker.lickey.com inbox:7728
+MIME-Version: 1.0
+
+This is a short, simple message.
+
+-- 
+matt
+
+
+--=-=-=
+
+
+
+-- 
+matt
+
+--=-=-=--
+
+

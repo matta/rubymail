@@ -14,6 +14,11 @@ require 'rbconfig.rb'
 require 'tempfile'
 require 'find'
 
+begin
+  require 'pp'
+rescue LoadError
+end
+
 class TestBase < RUNIT::TestCase
   include Config
 
@@ -83,6 +88,7 @@ class TestBase < RUNIT::TestCase
 
   def setup
     @scratch_dir = File.join(Dir.getwd, "_scratch_" + name)
+    @data_dir = File.join(Dir.getwd, "tests", "data")
     @scratch_hash = {}
 
     cleandir(@scratch_dir)
@@ -92,6 +98,16 @@ class TestBase < RUNIT::TestCase
 
   def ruby_program
     File.join(CONFIG['bindir'], CONFIG['ruby_install_name'])
+  end
+
+  def data_filename(name)
+    File.join(@data_dir, name)
+  end
+
+  def data_as_file(name)
+    File.open(data_filename(name)) { |f|
+      yield f
+    }
   end
 
   def scratch_filename(name)
@@ -113,4 +129,42 @@ class TestBase < RUNIT::TestCase
       Dir.rmdir(@scratch_dir) if FileTest.directory?(@scratch_dir)
     end
   end
+
+  def call_fails(arg, &block)
+    begin
+      yield arg
+    rescue Exception
+      return true
+    end
+    return false
+  end
+
+  # if a random string failes, run it through this function to find the
+  # shortest fail case
+  def find_shortest_failure(str, &block)
+    unless call_fails(str, &block)
+      raise "hey, the input didn't fail!"
+    else
+      # Chop off stuff from the beginning and then the end
+      # until it stops failing
+      bad = str
+      0.upto(bad.length) {|index|
+	bad.length.downto(1) {|length|
+	  begin
+	    loop {
+	      s = bad.dup
+	      s[index,length] = ''
+	      break if bad == s
+	      break unless call_fails(s, &block)
+	      bad = s
+	    }
+	  rescue IndexError
+	    break
+	  end
+	}
+      }
+      raise "shortest failure is #{bad.inspect}"
+    end
+  end
+
 end
