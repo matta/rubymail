@@ -1,0 +1,76 @@
+-*- text -*-
+
+To reach the author of RubyMail, send mail to matt@lickey.com.
+
+This is RubyMail, a lightweight mail library containing various mail
+utility classes and modules.
+
+This package is currently very raw.  There is no documentation.  All
+API is subject to change.  I very much appreciate suggestions and
+comments!
+
+This package has a complete unit test suite (requires RubyUnit to
+run).  Currently all of my e-mail is processed by this library.
+
+Current functionality includes:
+
+    An RFC 2822 address parser .  All legal syntax is parsed
+    correctly.  The parser is forgiving (it accepts some illegal
+    syntax).  The parser will never raise an exception on bad input,
+    instead opting to simply not return an address for something it
+    cannot parse.
+
+    A Mail::Header class that can be used to parse just the mail
+    header from an input stream, manipulate it, and then print it out
+    again.
+
+    A Mail::Message class that can be used to read both the mail
+    header and mail body from an input stream, manipulate it, and then
+    print it out again.
+
+    A Mail::Deliver module that contains methods used to deliver to
+    various kinds of mailboxes.  The message object being delivered
+    need only implement the 'each' method.
+
+    A Mail::LDA class that can be used to implement a custom mail
+    delivery agent (like procmail).
+
+    A sample use of Mail::LDA in the deliver.rb and main.rb scripts.
+
+Why?
+
+    I have used procmail for years, but generally dislike it.
+    Non-trivial mail handling in procmail is not intuitive and often
+    requires external commands.
+
+    To replace procmail, I've often wanted simple classes to
+    manipulate e-mail and deliver them to various mailbox formats.
+
+Why write this when package Foo does the same thing?
+
+    Because writing this is fun.  :-)
+
+Why not use TMail?
+
+    Another mature mail library is available for Ruby -- TMail by
+    Minero Aoki.  I do not think RubyMail is better than TMail, just
+    different.  In particular, RubyMail has no MIME or character
+    encoding handling yet.  So it may be faster, but it has fewer
+    features.
+
+Why not use Scarlet?
+
+    Another mail program for Ruby is Scarlet.  I keep having problems
+    accessing the Scarlet web pages, but it looks like it is a mail
+    LDA like procmail.  It looks like Scarlet uses TMail.
+
+License and Copyright
+
+    The copyright and license of this file is as follows.  Please
+    verify each source file in this package for its license.
+ 
+    Copyright (c) 2001 Matt Armstrong.  All rights reserved.
+
+    Permission is granted for use, copying, modification,
+    distribution, and distribution of modified versions of this work
+    as long as the above copyright notice is included.
