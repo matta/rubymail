@@ -1,3 +1,20 @@
+= Changes in RubyMail 0.14 (released 2003-02-08)
+
+- Improve RDoc documentation of the library.
+
+  - Add file level comments.
+  - No longer document RMail::Parser::PushbackReader and
+    RMail::Parser::Multipart, as they are used only internally or by
+    those who really want to dig deep into the library.  I also think
+    they might be changing soon.
+
+- Add ability to
+    require 'rmail'
+  and get all of RubyMail.
+
+- Switch to the BSD license, mainly so the license of RubyMail is not
+  confusing.
+
 = Changes in RubyMail 0.13 (released 2003-02-01)
 
 - Add convenience methods to RMail::Header that allow easy

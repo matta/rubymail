@@ -1,9 +1,13 @@
 In rough priority order...but please let me know if something you need
 is missing.
 
-= FIXME
+= Documentation
 
-- Write RDoc comments for each of the .rb files.
+- Make it clear that all strings the library works with are the ASCII
+  strings that are part of the RFC2822 message -- not strings in any
+  other charset.
+
+- Update Intro.txt, write MIME.txt and other Guides.
 
 = Features
 
@@ -33,11 +37,6 @@ is missing.
   content-disposition, etc.
 
 - Header folding in RMail::Header.
-
-- List formation in RMail::Header.
-
-  e.g. if you set header['To'] = [ a, b, c ] the header will be set to
-  the result of [ a, b, c ].collect{|e| e.to_s}.join(", ").
 
 - A small wrapper around Net::SMTP#send_mail that takes care of:
   - parsing recipients out of the various message headers

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2002, 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,38 +25,26 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #++
-# Implements the RMail::Mailbox module.
+# This module allows you to simply
+#  require 'rmail'
+# in your ruby scripts and have all of the RMail module required.
+# This provides maximum convenience when the startup time of your
+# script is not crucial.
 
+# The RMail module contains all of the RubyMail classes, but has no
+# useful API of its own.
+#
+# See guide/Intro.txt for a general overview of RubyMail.
 module RMail
-
-  # The RMail::Mailbox module contains a few methods that are useful
-  # for working with mailboxes.
-  module Mailbox
-
-    class << self
-
-      # Parse a Unix mbox style mailbox.  These mailboxes searate
-      # individual messages with a line beginning with the string
-      # "From ".
-      #
-      # If a block is given, yields to the block with the raw message
-      # (a string), otherwise an array of raw message strings is
-      # returned.
-      def parse_mbox(input, line_separator = $/)
-        require 'rmail/mailbox/mboxreader'
-        retval = []
-        RMail::Mailbox::MBoxReader.new(input, line_separator).each_message {
-          |reader|
-          raw_message = reader.read(nil)
-          if block_given?
-            yield raw_message
-          else
-            retval << raw_message
-          end
-        }
-        return block_given? ? nil : retval
-      end
-
-    end
-  end
 end
+
+require 'rmail/address'
+require 'rmail/header'
+require 'rmail/mailbox'
+require 'rmail/message'
+require 'rmail/parser'
+require 'rmail/serialize'
+require 'rmail/utils'
+require 'rmail/mailbox/mboxreader'
+require 'rmail/parser/multipart'
+require 'rmail/parser/pushbackreader'
