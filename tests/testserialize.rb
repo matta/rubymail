@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002, 2003 Matt Armstrong.  All rights reserved.
 #
 #   Permission is granted for use, copying, modification,
 #   distribution, and distribution of modified versions of this work
@@ -55,7 +55,7 @@ This is the body.
 
     m.to_s
 
-    assert_match(/^=-\d+-\d+-\d+-\d+$/,
+    assert_match(/^=-\d+-\d+-\d+-\d+-\d+-=$/,
                  m.header.param('content-type', 'boundary'))
   end
 
@@ -69,7 +69,7 @@ This is the body.
 
     m.to_s
 
-    assert_match(/^=-\d+-\d+-\d+-\d+$/,
+    assert_match(/^=-\d+-\d+-\d+-\d+-\d+-=$/,
                  m.part(0).header.param('content-type', 'boundary'))
     assert_equal("a", m.header.param('content-type', 'boundary'))
   end

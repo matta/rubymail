@@ -18,12 +18,14 @@ copyright remains.
 
 = Requirements
 
-Ruby 1.6.* or Ruby 1.8.*.  No non-standard packages are required.
+Ruby 1.6.* or Ruby 1.8.*.  Only tested under Linux, should be fine
+under any Unix.
 
 = Documentation
 
 The documentation is in RDoc format in the doc subdirectory.  Aside
-from the API reference, you will be interested in guide/Intro.txt.
+from the API reference, you will be interested in guide/Intro.txt and
+guide/TableOfContents.txt.
 
 = Install
 

@@ -1,5 +1,5 @@
 =begin
-   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
 
    Permission is granted for use, copying, modification, distribution,
    and distribution of modified versions of this work as long as the
@@ -7,7 +7,9 @@
 =end
 
 require 'rmail/utils'
-require 'rmail/header/field'
+require 'rmail/address'
+require 'digest/md5'
+require 'time'
 
 module RMail
 
@@ -48,6 +50,56 @@ module RMail
   # stored in the object.
   class Header
     include Enumerable
+
+    class Field                 # :nodoc:
+
+      # fixme, document methadology for this (RFC2822)
+      EXTRACT_FIELD_NAME_RE = /\A([^\x00-\x1f\x7f-\xff :]+):\s*/o
+
+      def initialize(name, value = nil)
+        if value
+          @name = Field.name_strip(name.to_str).freeze
+          @value = Field.value_strip(value.to_str).freeze
+          @raw = nil
+        else
+          @raw = name.to_str.freeze
+          if @raw =~ EXTRACT_FIELD_NAME_RE
+            @name = $1
+            @value = $'.chomp.freeze
+          else
+            @name = "".freeze
+            @value = Field.value_strip(@raw).freeze
+          end
+        end
+      end
+
+      attr_reader :name, :value, :raw
+
+      def ==(other)
+        other.kind_of?(self.class) &&
+          @name.downcase == other.name.downcase &&
+          @value == other.value
+      end
+
+      def Field.name_canonicalize(name)
+        name_strip(name.to_str).downcase
+      end
+
+      private
+
+      def Field.name_strip(name)
+        name.sub(/\s*:.*/, '')
+      end
+
+      def Field.value_strip(value)
+        if value.frozen?
+          value = value.dup
+        end
+        value.strip!
+        value
+      end
+
+    end
 
     # Creates a new empty header object.
     def initialize()
@@ -309,6 +361,13 @@ module RMail
       self
     end
 
+    # First delete any fields with +name+, then append a new field
+    # with +name+, +value+, and +params+ as in #add.
+    def set(name, value, params = nil)
+      delete(name)
+      add(name, value, nil, params)
+    end
+
     # Append a new field with +name+ and +value+.  If you want control
     # of where the field is inserted, see #add.
     #
@@ -364,23 +423,23 @@ module RMail
     # Determine if there is any fields that match the given +name+ and
     # +value+.
     #
-    # If +name+ is nil, all fields are tested.  If +name+ is a String,
-    # all fields of that name are tested.  If +name+ is a Regexp the
-    # field names are matched against the regexp (the field names are
-    # converted to lower case first).
+    # If +name+ is a String, all fields of that name are tested.  If
+    # +name+ is a Regexp the field names are matched against the
+    # regexp (the field names are converted to lower case first).  Use
+    # the regexp // if you want to test all field names.
     #
-    # If +value+ is nil, all values are matched.  If +value+ is a
-    # String, it is converted to a case insensitive Regexp that
-    # matches the string.  Otherwise, it must be a Regexp.  Note that
-    # the field value may be folded across many lines, so you may need
-    # to use a multi-line Regexp.  Also consider using a case
-    # insensitive Regexp.
+    # If +value+ is a String, it is converted to a case insensitive
+    # Regexp that matches the string.  Otherwise, it must be a Regexp.
+    # Note that the field value may be folded across many lines, so
+    # you should use a multi-line Regexp.  Also consider using a case
+    # insensitive Regexp.  Use the regexp // if you want to match all
+    # possible field values.
     #
     # Returns true if there is a match, false otherwise.
     #
     # Example:
     #
-    #    if h.match?('x-ml-name', /ruby-dev/)
+    #    if h.match?('x-ml-name', /ruby-dev/im)
     #      # do something
     #    end
     #
@@ -396,24 +455,24 @@ module RMail
 
     # Find all fields that match the given +name and +value+.
     #
-    # If +name+ is nil, all fields are tested.  If +name+ is a String,
-    # all fields of that name are tested.  If +name+ is a Regexp, the
-    # field names are matched against the regexp (the field names are
-    # converted to lower case first).
+    # If +name+ is a String, all fields of that name are tested.  If
+    # +name+ is a Regexp, the field names are matched against the
+    # regexp (the field names are converted to lower case first).  Use
+    # the regexp // if you want to test all field names.
     #
-    # If +value+ is nil, all values are matched.  If +value+ is a
-    # String, it is converted to a case insensitive Regexp that
-    # matches the string.  Otherwise, it must be a Regexp.  Note that
-    # the field value may be folded across many lines, so you may need
-    # to use a multi-line Regexp.  Also consider using a case
-    # insensitive Regexp.
+    # If +value+ is a String, it is converted to a case insensitive
+    # Regexp that matches the string.  Otherwise, it must be a Regexp.
+    # Note that the field value may be folded across many lines, so
+    # you may need to use a multi-line Regexp.  Also consider using a
+    # case insensitive Regexp.  Use the regexp // if you want to match
+    # all possible field values.
     #
     # Returns a new RMail::Header holding all matching headers.
     #
     # Examples:
     #
-    #  received = header.match('Received', nil)
-    #  destinations = header.match(/^(to|cc|bcc)$/, nil)
+    #  received = header.match('Received', //)
+    #  destinations = header.match(/^(to|cc|bcc)$/, //)
     #  bigfoot_received = header.match('received',
     #                                  /from.*by.*bigfoot\.com.*LiteMail/im)
     #
@@ -464,9 +523,9 @@ module RMail
     # E.g. a content type of <tt>text/plain</tt> has a media type of
     # <tt>text</tt>.
     #
-    # If there is no content type header, returns the passed block is
-    # executed and its return value is returned.  If no block is passed,
-    # the value of the +default+ argument is returned.
+    # If there is no content type field, returns the passed block is
+    # executed and its return value is returned.  If no block is
+    # passed, the value of the +default+ argument is returned.
     def media_type(default = nil)
       if value = content_type
         value.split('/')[0]
@@ -484,7 +543,7 @@ module RMail
     # E.g. a content type of <tt>text/plain</tt> has a media subtype
     # of <tt>plain</tt>.
     #
-    # If there is no content type header, returns the passed block is
+    # If there is no content type field, returns the passed block is
     # executed and its return value is returned.  If no block is passed,
     # the value of the +default+ argument is returned.
     def subtype(default = nil)
@@ -543,7 +602,7 @@ module RMail
     end
 
     # Set the boundary parameter of this message's Content-Type:
-    # header.
+    # field.
     def set_boundary(boundary)
       params = params_quoted('content-type')
       params ||= {}
@@ -554,11 +613,291 @@ module RMail
       add('Content-Type', content_type, nil, params)
     end
 
+    # Return the value of the Date: field, parsed into a Time
+    # object.  Returns nil if there is no Date: field or the field
+    # value could not be parsed.
+    def date
+      if value = self['date']
+        begin
+          # Rely on Ruby's standard time.rb to parse the time.
+          (Time.rfc2822(value) rescue Time.parse(value)).localtime
+        rescue
+          # Exceptions during time parsing just cause nil to be
+          # returned.
+        end
+      end
+    end
+
+    # Deletes any existing Date: fields and appends a new one
+    # corresponding to the given Time object.
+    def date=(time)
+      delete('Date')
+      add('Date', time.rfc2822)
+    end
+
+    # Returns the value of the From: header as an Array of
+    # RMail::Address objects.
+    #
+    # See #address_list_fetch for details on what is returned.
+    #
+    # This method does not return a single RMail::Address value
+    # because it is legal to have multiple addresses in a From:
+    # header.
+    #
+    # This method always returns at least the empty list.  So if you
+    # are always only interested in the first from address (most
+    # likely the case), you can safely say:
+    #
+    #    header.from.first
+    def from
+      address_list_fetch('from')
+    end
+
+    # Sets the From: field to the supplied address or addresses.
+    #
+    # See #address_list_assign for information on valid values for
+    # +addresses+.
+    #
+    # Note that the From: header usually contains only one address,
+    # but it is legal to have more than one.
+    def from=(addresses)
+      address_list_assign('From', addresses)
+    end
+
+    # Returns the value of the To: field as an Array of RMail::Address
+    # objects.
+    #
+    # See #address_list_fetch for details on what is returned.
+    def to
+      address_list_fetch('to')
+    end
+
+    # Sets the To: field to the supplied address or addresses.
+    #
+    # See #address_list_assign for information on valid values for
+    # +addresses+.
+    def to=(addresses)
+      address_list_assign('To', addresses)
+    end
+
+    # Returns the value of the Cc: field as an Array of RMail::Address
+    # objects.
+    #
+    # See #address_list_fetch for details on what is returned.
+    def cc
+      address_list_fetch('cc')
+    end
+
+    # Sets the Cc: field to the supplied address or addresses.
+    #
+    # See #address_list_assign for information on valid values for
+    # +addresses+.
+    def cc=(addresses)
+      address_list_assign('Cc', addresses)
+    end
+
+    # Returns the value of the Bcc: field as an Array of
+    # RMail::Address objects.
+    #
+    # See #address_list_fetch for details on what is returned.
+    def bcc
+      address_list_fetch('bcc')
+    end
+
+    # Sets the Bcc: field to the supplied address or addresses.
+    #
+    # See #address_list_assign for information on valid values for
+    # +addresses+.
+    def bcc=(addresses)
+      address_list_assign('Bcc', addresses)
+    end
+
+    # Returns the value of the Reply-To: header as an Array of
+    # RMail::Address objects.
+    def reply_to
+      address_list_fetch('reply-to')
+    end
+
+    # Sets the Reply-To: field to the supplied address or addresses.
+    #
+    # See #address_list_assign for information on valid values for
+    # +addresses+.
+    def reply_to=(addresses)
+      address_list_assign('Reply-To', addresses)
+    end
+
+    # Returns the value of this object's Message-Id: field.
+    def message_id
+      self['message-id']
+    end
+
+    # Sets the value of this object's Message-Id: field to a new
+    # random value.
+    #
+    # If you don't supply a +fqdn+ (fully qualified domain name) then
+    # one will be randomly generated for you.  If a valid address
+    # exists in the From: field, its domain will be used as a basis.
+    #
+    # Part of the randomness in the header is taken from the header
+    # itself, so it is best to call this method after adding other
+    # fields to the header -- especially those that make it unique
+    # (Subject:, To:, Cc:, etc).
+    def add_message_id(fqdn = nil)
+
+      # If they don't supply a fqdn, we supply one for them.
+      #
+      # First grab the From: field and see if we can use a domain from
+      # there.  If so, use that domain name plus the hash of the From:
+      # field's value (this guarantees that bob@example.com and
+      # sally@example.com will never have clashes).
+      #
+      # If there is no From: field, grab the current host name and use
+      # some randomness from Ruby's random number generator.  Since
+      # Ruby's random number generator is fairly good this will
+      # suffice so long as it is seeded corretly.
+      #
+      # P.S. There is no portable way to get the fully qualified
+      # domain name of the current host.  Those truly interested in
+      # generating "correct" message-ids should pass it in.  We
+      # generate a hopefully random and unique domain name.
+      unless fqdn
+        unless fqdn = from.domains.first
+          require 'socket'
+          fqdn = sprintf("%s.invalid", Socket.gethostname)
+        end
+      else
+        raise ArgumentError, "fqdn must have at least one dot" unless
+          fqdn.index('.')
+      end
+
+      # Hash the header we have so far.
+      md5 = Digest::MD5.new
+      starting_digest = md5.digest
+      @fields.each { |f|
+        if f.raw
+          md5.update(f.raw)
+        else
+          md5.update(f.name) if f.name
+          md5.update(f.value) if f.value
+        end
+      }
+      if (digest = md5.digest) == starting_digest
+        digest = 0
+      end
+
+      set('Message-Id', sprintf("<%s.%s.%s.rubymail@%s>",
+                                base36(Time.now.to_i),
+                                base36(rand(MESSAGE_ID_MAXRAND)),
+                                base36(digest),
+                                fqdn))
+    end
+
+    # Return the subject of this message.
+    def subject
+      self['subject']
+    end
+
+    # Set the subject of this message
+    def subject=(string)
+      set('subject', string)
+    end
+
+    # Returns an RMail::Address::List array holding all the recipients
+    # of this message.  This uses the contents of the To, Cc, and Bcc
+    # fields.  Duplicate addresses are eliminated.
+    def recipients
+      retval = RMail::Address::List.new
+      retval.concat(to)
+      retval.concat(cc)
+      retval.concat(bcc)
+      retval.uniq
+    end
+
+#    recipients
+
+    # Retrieve a given field's value as an RMail::Address::List of
+    # RMail::Address objects.
+    #
+    # This method is used to implement many of the convenience methods
+    # such as #from, #to, etc.
+    def address_list_fetch(field_name)
+      if values = fetch_all(field_name, nil)
+        list = nil
+        values.each { |value|
+          if list
+            list.concat(Address.parse(value))
+          else
+            list = Address.parse(value)
+          end
+        }
+        if list and !list.empty?
+          list
+        end
+      end or RMail::Address::List.new
+    end
+
+    # Set a given field to a list of supplied +addresses+.
+    #
+    # The +addresses+ may be a String, RMail::Address, or Array.  If a
+    # String, it is parsed for valid email addresses and those found
+    # are used.  If an RMail::Address, the result of
+    # RMail::Address#format is used.  If an Array, each element of the
+    # array must be either a String or RMail::Address and is treated
+    # as above.
+    #
+    # This method is used to implement many of the convenience methods
+    # such as #from=, #to=, etc.
+    def address_list_assign(field_name, addresses)
+      if addresses.kind_of?(Array)
+        value = addresses.collect { |e|
+          if e.kind_of?(RMail::Address)
+            e.format
+          else
+            RMail::Address.parse(e.to_str).collect { |a|
+              a.format
+            }
+          end
+        }.flatten.join(", ")
+        set(field_name, value)
+      elsif addresses.kind_of?(RMail::Address)
+        set(field_name, addresses.format)
+      else
+        address_list_assign(field_name,
+                            RMail::Address.parse(addresses.to_str))
+      end
+    end
+
     protected
 
     attr :fields, true
 
     private
+
+    MESSAGE_ID_MAXRAND = 0x7fffffff
+
+    def string2num(string)
+      temp = 0
+      string.reverse.each_byte { |b|
+        temp <<= 8
+        temp |= b
+      }
+      return temp
+    end
+
+    BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+    def base36(number)
+      if number.kind_of?(String)
+        number = string2num(number)
+      end
+      raise ArgumentError, "need non-negative number" if number < 0
+      return "0" if number == 0
+      result = ""
+      while number > 0
+        number, remainder = number.divmod(36)
+        result << BASE36[remainder]
+      end
+      return result.reverse!
+    end
 
     PARAM_SCAN_RE = %r{
         ;
@@ -599,22 +938,6 @@ module RMail
 	if block_given? then yield field_name else default end
       end
     end
-
-#     def field_name_strip(field_name)
-#       field_name.sub(/\s*:.*/, '')
-#     end
-
-#     def field_name_format(field_name)
-#       field_name_strip(field_name.downcase)
-#     end
-
-#     def field_value_strip(value)
-#       if value.frozen?
-#         value = value.dup
-#       end
-#       value.strip!
-#       value
-#     end
 
     def massage_match_args(name, value)
       case name

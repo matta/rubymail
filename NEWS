@@ -1,3 +1,32 @@
+= Changes in RubyMail 0.13 (released 2003-02-01)
+
+- Add convenience methods to RMail::Header that allow easy
+  manipulation of the To, Cc, Bcc, Reply-To, Date, Subject and
+  Message-Id fields.  This includes unique Message-Id generation code
+  and robust Date field parsing and formatting.
+
+- Add RMail::Header#set, to delete existing fields of the same name
+  and then add a new one.
+
+- RMail::Address.parse now returns an RMail::Address::List instead of
+  an Array (existing code still works, since RMail::Address::List
+  inherits from Array).
+
+- Add RMail::Address#<=>, RMail::Address#hash and RMail::Address#eql?
+  methods.  This allows arrays of RMail::Address to be sorted as well
+  as allowing RMail::Address to be placed in a hash (which in turn
+  allows Array#uniq to work when holding RMail::Address objects).
+
+- Add an RMail::Mailbox::MBoxReader.each_message method.
+
+- Deleted the rmail/header/field.rb field and incorporated
+  RMail::Header::Field into rmail/header.rb.
+
+- Improve uniqueness of the MIME boundary generation by including
+  Time.now.tv_usec.
+
+- Correct broken docs for RMail::Header#match and RMail::Header#match?
+
 = Changes in RubyMail 0.12 (released 2003-01-13)
 
 - Add an install.rb script.

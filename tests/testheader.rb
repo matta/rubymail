@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 =begin
-   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
 
    Permission is granted for use, copying, modification, distribution,
    and distribution of modified versions of this work as long as the
@@ -192,6 +192,22 @@ class TestRMailHeader < TestBase
     assert_match(/\b1\.0\b/, h['mime-version:'])
     assert(h.param('content-type', 'boundary'))
     assert_equal("multipart", h.media_type)
+  end
+
+  def test_set
+    # Test that set works like delete+add
+
+    h = RMail::Header.new
+    h.add_raw("Foo: Bar")
+    h.set('foo', 'expected')
+    assert_equal('expected', h['foo'])
+    assert_equal(1, h.length)
+
+    h = RMail::Header.new
+    h.set('foo', 'expected')
+    assert_equal('expected', h['foo'])
+    assert_equal(1, h.length)
+
   end
 
   def test_clear
@@ -938,4 +954,234 @@ EOF
                    h.param('content-disposition', 'filename'))
     end
   end
+
+  def test_date
+
+    begin
+      h = RMail::Header.new
+      h.add_raw("Date: Sat, 18 Jan 2003 21:00:09 -0700")
+      t = h.date
+      assert(!t.utc?)
+      t.utc
+      assert_equal([9, 0, 4, 19, 1, 2003, 0], t.to_a[0, 7])
+      assert_match(/Sun, 19 Jan 2003 04:00:09 [+-]0000/, t.rfc2822)
+    end
+
+    begin
+      h = RMail::Header.new
+      h.add_raw("Date: Sat,18 Jan 2003 02:04:27 +0100 (CET)")
+      t = h.date
+      assert(!t.utc?)
+      t.utc
+      assert_equal([27, 4, 1, 18, 1, 2003, 6, 18], t.to_a[0, 8])
+      assert_match(/Sat, 18 Jan 2003 01:04:27 [+-]0000/, t.rfc2822)
+    end
+
+    begin
+      h = RMail::Header.new
+      # This one is bogus and can't even be parsed.
+      h.add_raw("Date: 21/01/2002 09:29:33 Pacific Daylight Time")
+      t = assert_no_exception {
+        h.date
+      }
+      assert_nil(t)
+    end
+
+    begin
+      h = RMail::Header.new
+      # This time is out of the range that can be represented by a
+      # Time object.
+      h.add_raw("Date: Sun, 14 Jun 2065 05:51:55 +0200")
+      t = assert_no_exception {
+        h.date
+      }
+      assert_nil(t)
+    end
+
+  end
+
+  def test_date_eq
+    h = RMail::Header.new
+    t = Time.at(1042949885).utc
+    h.date = t
+    assert_match(/Sun, 19 Jan 2003 04:18:05 [+-]0000/, h['date'])
+  end
+
+  def test_from
+    begin
+      h = RMail::Header.new
+      h.add_raw('From: matt@example.net')
+      a = h.from
+      assert_kind_of(Array, a)
+      assert_kind_of(RMail::Address::List, a)
+      assert_equal(1, a.length)
+      assert_kind_of(RMail::Address, a.first)
+      assert_equal(RMail::Address.new("matt@example.net"), a.first)
+    end
+
+    begin
+      h = RMail::Header.new
+      h.add_raw('From: Matt Armstrong <matt@example.net>,
+ Bob Smith <bob@example.com>')
+      a = h.from
+      assert_kind_of(Array, a)
+      assert_kind_of(RMail::Address::List, a)
+      assert_equal(2, a.length)
+      assert_kind_of(RMail::Address, a[0])
+      assert_equal("matt@example.net", a[0].address)
+      assert_equal("Matt Armstrong", a[0].display_name)
+      assert_kind_of(RMail::Address, a[1])
+      assert_equal("bob@example.com", a[1].address)
+      assert_equal("Bob Smith", a[1].display_name)
+    end
+
+    begin
+      h = RMail::Header.new
+      a = h.from
+      assert_kind_of(Array, a)
+      assert_kind_of(RMail::Address::List, a)
+      assert_equal(0, a.length)
+      assert_nil(h.from.first)
+    end
+  end
+
+  def common_test_address_list_header_assign(field_name)
+    h = RMail::Header.new
+
+    get = field_name.downcase.gsub(/-/, '_')
+    assign = get + '='
+
+    h.__send__("#{assign}", "bob@example.net")
+    assert_equal(1, h.length)
+    assert_equal("bob@example.net", h[field_name])
+
+    h[field_name] = "bob2@example.net"
+    assert_equal(2, h.length)
+    assert_equal("bob@example.net", h[field_name])
+    assert_equal(["bob@example.net", "bob2@example.net"],
+                 h.fetch_all(field_name))
+    assert_equal(["bob@example.net", "bob2@example.net"],
+                 h.__send__("#{get}"))
+
+    h.__send__("#{assign}", "sally@example.net")
+    assert_equal(1, h.length)
+    assert_equal("sally@example.net", h[field_name])
+
+    h.__send__("#{assign}", "Sally <sally@example.net>, bob@example.invalid (Bob)")
+    assert_equal(1, h.length)
+    assert_equal(2, h.__send__(get).length)
+    assert_equal(%w{ sally bob },
+                 h.__send__(get).locals)
+    assert_equal([ 'Sally', nil ],
+                 h.__send__(get).display_names)
+    assert_equal([ 'Sally', 'Bob' ],
+                 h.__send__(get).names,
+                 "got wrong result for #names")
+    assert_equal(%w{ example.net example.invalid },
+                 h.__send__(get).domains)
+    assert_equal(%w{ sally@example.net bob@example.invalid },
+                 h.__send__(get).addresses)
+    assert_equal([ "Sally <sally@example.net>", "bob@example.invalid (Bob)" ],
+                 h.__send__(get).format)
+
+    h.__send__("#{assign}", RMail::Address.new('Bill <bill@example.net>'))
+    assert_equal(1, h.length)
+    assert_equal(1, h.__send__(get).length)
+    assert_equal(%w{ bill@example.net }, h.__send__(get).addresses)
+    assert_equal('bill@example.net', h.__send__(get)[0].address)
+    assert_equal('Bill', h.__send__(get)[0].display_name)
+
+    h.__send__("#{assign}", RMail::Address.parse('Bob <bob@example.net>, ' +
+                                                 'Sally <sally@example.net>'))
+    assert_equal(1, h.length)
+    assert_equal(2, h.__send__(get).length)
+    assert_equal(%w{ bob@example.net sally@example.net },
+                 h.__send__(get).addresses)
+    assert_equal('bob@example.net', h.__send__(get)[0].address)
+    assert_equal('Bob', h.__send__(get)[0].display_name)
+    assert_equal('sally@example.net', h.__send__(get)[1].address)
+    assert_equal('Sally', h.__send__(get)[1].display_name)
+  end
+
+  def test_from_assign
+    common_test_address_list_header_assign('From')
+  end
+
+  def test_to_assign
+    common_test_address_list_header_assign('To')
+  end
+
+  def test_reply_cc_assign
+    common_test_address_list_header_assign('Cc')
+  end
+
+  def test_reply_bcc_assign
+    common_test_address_list_header_assign('Bcc')
+  end
+
+  def test_reply_to_assign
+    common_test_address_list_header_assign('Reply-To')
+  end
+
+  def test_message_id
+    h = RMail::Header.new
+    h.set('Message-Id', '<foo@bar>')
+    assert_equal('<foo@bar>', h.message_id)
+  end
+
+  def test_add_message_id
+    h = RMail::Header.new
+    h.add_message_id
+
+    a = RMail::Address.parse(h.message_id).first
+    require 'socket'
+    assert_equal(Socket.gethostname + '.invalid', a.domain)
+    assert_equal('rubymail', a.local.split('.')[3])
+    assert_equal('0', a.local.split('.')[2],
+                 "md5 data present for empty header")
+    assert_match(/[a-z0-9]{6}/, a.local.split('.')[0])
+    assert_match(/[a-z0-9]{6}/, a.local.split('.')[1])
+
+    h.to = "matt@lickey.com"
+    h.delete('message-id')
+    h.add_message_id
+    a = RMail::Address.parse(h.message_id).first
+    assert_equal('70bmbq38pc5q462kl4ikv0mcq', a.local.split('.')[2],
+                 "md5 hash wrong for header")
+  end
+
+  def test_subject
+    h = RMail::Header.new
+    h['subject'] = 'hi mom'
+    assert_equal('hi mom', h.subject)
+    assert_equal('hi mom', h['subject'])
+    h.subject = 'hi dad'
+    assert_equal(1, h.length)
+    assert_equal('hi dad', h['subject'])
+  end
+
+  def test_recipients
+    %w{ to cc bcc }.each { |field_name|
+      h = RMail::Header.new
+      h[field_name] = 'matt@lickey.com'
+      assert_equal([ 'matt@lickey.com' ], h.recipients )
+      h[field_name] = 'bob@lickey.com'
+      assert_equal([ 'matt@lickey.com', 'bob@lickey.com' ], h.recipients )
+    }
+
+    h = RMail::Header.new
+    h.to = [ 'bob@example.net', 'sally@example.net' ]
+    h.cc = 'bill@example.net'
+    h.bcc = 'samuel@example.net'
+    assert_kind_of(RMail::Address::List, h.recipients)
+    assert_equal([ 'bill@example.net',
+                   'bob@example.net',
+                   'sally@example.net',
+                   'samuel@example.net' ], h.recipients.sort)
+
+    h = RMail::Header.new
+    assert_kind_of(RMail::Address::List, h.recipients)
+    assert_equal(0, h.recipients.length)
+  end
+
 end

@@ -1,5 +1,6 @@
 =begin
-   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights
+   reserved.
 
    Permission is granted for use, copying, modification, distribution,
    and distribution of modified versions of this work as long as the
@@ -26,8 +27,6 @@ module RMail
     # Create a new address.  If the +string+ argument is not nil, it
     # is parsed for mail addresses and if one is found, it is used to
     # initialize this object.
-    #
-    # See mail/deliver.rb
     def initialize(string = nil)
 
       @local = @domain = @comments = @display_name = nil
@@ -43,6 +42,39 @@ module RMail
       else
 	raise ArgumentError unless string.nil?
       end
+    end
+
+    # Compare this address with another based on the email address
+    # portion only (any display name and comments are ignored).  If
+    # the other object is not an RMail::Address, it is coerced into a
+    # string with its to_str method and then parsed into an
+    # RMail::Address object.
+    def <=>(other)
+      if !other.kind_of?(RMail::Address)
+	other = RMail::Address.new(other.to_str)
+      end
+      cmp = (@local || '') <=> (other.local || '')
+      if cmp == 0
+        cmp = (@domain || '') <=> (other.domain || '')
+      end
+      return cmp
+    end
+    include Comparable
+
+    # Return a hash value for this address.  This is based solely on
+    # the email address portion (any display name and comments are
+    # ignored).
+    def hash
+      address.hash
+    end
+
+    # Return true if the two objects are equal.  Do this based solely
+    # on the email address portion (any display name and comments are
+    # ignored).  Fails if the other object is not an RMail::Address
+    # object.
+    def eql?(other)
+      raise TypeError unless other.kind_of?(RMail::Address)
+      @local.eql?(other.local) and @domain.eql?(other.domain)
     end
 
     # Retrieve the local portion of the mail address.  This is the
@@ -212,6 +244,9 @@ module RMail
       [display_name, address, comments].compact.join(' ')
     end
 
+    # Addresses can be converted into strings.
+    alias :to_str :format
+
     # This class provides a facility to parse a string containing one
     # or more RFC2822 addresses into an array of RMail::Address
     # objects.  You can use it directly, but it is more conveniently
@@ -225,10 +260,12 @@ module RMail
       end
 
       # This function attempts to extract mailing addresses from the
-      # string passed to #new.  The function returns an array of
-      # RMail::Address objects.  A malformed input string will not
-      # generate an exception.  Instead, the array returned will
-      # simply not contained the malformed addresses.
+      # string passed to #new.  The function returns an
+      # RMail::Address::List of RMail::Address objects
+      # (RMail::Address::List is a subclass of Array).  A malformed
+      # input string will not generate an exception.  Instead, the
+      # array returned will simply not contained the malformed
+      # addresses.
       #
       # The string is expected to be in a valid format as documented
       # in RFC2822's mailbox-list grammar.  This will work for lists
@@ -237,7 +274,7 @@ module RMail
       def parse
         @lexemes = []
 	@tokens = []
-	@addresses = []
+	@addresses = RMail::Address::List.new
 	@errors = 0
 	new_address
         get
@@ -674,7 +711,8 @@ module RMail
     end
 
     # Given a string, this function attempts to extract mailing
-    # addresses from it and returns an array of those addresses.
+    # addresses from it and returns an RMail::Address::List of those
+    # addresses (RMail::Address::List is a subclass of Array).
     #
     # This is identical to using a RMail::Address::Parser directly like
     # this:
@@ -682,6 +720,49 @@ module RMail
     #  RMail::Address::Parser.new(string).parse
     def Address.parse(string)
       Parser.new(string).parse
+    end
+
+    # RMail::Address::List is a simple subclass of the Array class
+    # that provides convenience methods for accessing the
+    # RMail::Address objects it contains.
+    class List < Array
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#local on each element of the list.
+      def locals
+        collect { |a| a.local }
+      end
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#display_name on each element of the list.
+      def display_names
+        collect { |a| a.display_name }
+      end
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#name on each element of the list.
+      def names
+        collect { |a| a.name }
+      end
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#domain on each element of the list.
+      def domains
+        collect { |a| a.domain }
+      end
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#address on each element of the list.
+      def addresses
+        collect { |a| a.address }
+      end
+
+      # Returns an array of strings -- the result of calling
+      # RMail::Address#format on each element of the list.
+      def format
+        collect { |a| a.format }
+      end
+
     end
 
   end

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002, 2003 Matt Armstrong.  All rights reserved.
 #
 #   Permission is granted for use, copying, modification,
 #   distribution, and distribution of modified versions of this work
@@ -33,7 +33,5 @@ module RMail
       end
 
     end
-
   end
 end
-

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 =begin
-   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
 
    Permission is granted for use, copying, modification, distribution,
    and distribution of modified versions of this work as long as the
@@ -80,6 +80,7 @@ class TestRMailAddress < TestBase
       $DEBUG = prev_debug
     end
     assert_kind_of(Array, results)
+    assert_kind_of(RMail::Address::List, results)
     results.each { |address|
       validate_interface(address)
     }
@@ -1092,6 +1093,58 @@ class TestRMailAddress < TestBase
     assert_equal([ 'foo', 'bar' ], a.comments)
     a.comments = 'foo'
     assert_equal([ 'foo' ], a.comments)
+  end
+
+  def test_rmail_address_compare
+    a1 = RMail::Address.new
+    a2 = RMail::Address.new
+
+    # Make sure it works on uninitialized addresses
+    assert_equal(0, a1 <=> a2)
+    assert_equal(a1, a2)
+
+    # Display name and comments make no difference
+    a1.display_name = 'foo'
+    a1.comments = 'bar'
+    assert_equal(0, a1 <=> a2)
+    assert_equal(a1, a2)
+
+    # a1 < a2
+    a1 = RMail::Address.new("Zeus <bob@example.com>")
+    a2 = RMail::Address.new("sally@example.com")
+    assert(a1 < a2)
+    assert(a1 != a2)
+
+    # Type coercion
+    assert(a1 < "zorton@example.com")
+    assert(a1 > ".")
+    assert(a1 == "bob@example.com")
+  end
+
+  def test_rmail_address_eql?
+    a1 = RMail::Address.new
+    a2 = RMail::Address.new
+
+    # Make sure it works on uninitialized addresses
+    assert(a1.eql?(a2))
+
+    # Display name and comments make no difference
+    a1.display_name = 'foo'
+    a1.comments = 'bar'
+    assert(a1.eql?(a2))
+
+    a1 = RMail::Address.new("Zeus <bob@example.com>")
+    assert_exception(TypeError) {
+      a1.eql?("bob@eaxample.com")
+    }
+  end
+
+  def test_rmail_address_hash
+    assert_no_exception {
+      RMail::Address.new.hash
+    }
+    a1 = RMail::Address.new("Zeus <bob@example.com>")
+    assert_equal(a1.hash, "bob@example.com".hash)
   end
 
 end

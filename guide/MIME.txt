@@ -1,0 +1,4 @@
+= MIME Support in RubyMail
+
+FIXME: write this.
+TODO: show how to add, delete, decode and encode parts.

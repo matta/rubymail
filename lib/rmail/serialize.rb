@@ -133,10 +133,13 @@ module RMail
     # Generate a random boundary
     def generate_boundary
       @@boundary_count += 1
-      '=-' + [Time.now.to_i.to_s,
-        Process.pid.to_s,
-        rand(10000),
-        @@boundary_count].join('-')
+      t = Time.now
+      sprintf("=-%d-%d-%d-%d-%d-=",
+              t.tv_sec.to_s,
+              t.tv_usec.to_s,
+              Process.pid.to_s,
+              rand(10000),
+              @@boundary_count)
     end
 
     # Returns a boundary that will probably work out.  Extracts any

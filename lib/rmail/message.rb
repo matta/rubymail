@@ -1,5 +1,5 @@
 =begin
-   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
 
    Permission is granted for use, copying, modification, distribution,
    and distribution of modified versions of this work as long as the
@@ -31,7 +31,9 @@ module RMail
         @body == other.body
     end
 
-    # Returns the body of the message as a string.
+    # Returns the body of the message as a String or Array.  If
+    # #multipart? returns false, it will be a String, otherwise an
+    # Array.
     #
     # See also #header.
     def body

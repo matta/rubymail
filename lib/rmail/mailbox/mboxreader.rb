@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2002, 2003 Matt Armstrong.  All rights reserved.
 #
 #   Permission is granted for use, copying, modification,
 #   distribution, and distribution of modified versions of this work
@@ -12,17 +12,16 @@ require 'rmail/parser/pushbackreader'
 module RMail
   module Mailbox
 
-    # Class that can parse Unix mbox style mailboxes.  These
-    # mailboxes separate individual messages with a line beginning
-    # with the string "From ".
+    # Class that can parse Unix mbox style mailboxes.  These mailboxes
+    # separate individual messages with a line beginning with the
+    # string "From ".
     #
     # Typical usage:
     #
-    #  File.open("file.mbox") { |f|
-    #    reader = RMail::Mailbox::MBoxReader.new(f)
-    #    while ! reader.eof
-    #      process_message(reader.read(nil))
-    #      reader.next
+    #  File.open("file.mbox") { |file|
+    #    RMail::Mailbox::MBoxReader.new(file).each_message { |input|
+    #      message = RMail::Parser.read(input)
+    #      # do something with the message
     #    end
     #  }
     #
@@ -101,6 +100,17 @@ module RMail
       # Returns true if the next call to read_chunk will return nil.
       def eof
         parent_eof and @tail.nil?
+      end
+
+      # Yield self until eof, calling next after each yield.
+      #
+      # This method makes it simple to read messages successively out
+      # of the mailbox.  See the class description for a code example.
+      def each_message
+        while !eof
+          yield self
+          self.next
+        end
       end
 
       private
