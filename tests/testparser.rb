@@ -8,28 +8,12 @@
 =end
 
 require 'tests/testbase'
-require 'mail/parser'
+require 'rmail/parser'
 
-class TestMailParser < TestBase
+class TestRMailParser < TestBase
 
-  def test_parse
-    p = Mail::Parser.new
-    assert_instance_of(Mail::Parser, p)
-
-    string_msg = <<-EOF
-    From matt@lickey.com  Mon Dec 24 00:00:06 2001
-    From:    matt@example.net
-    To:   matt@example.com
-    Subject: test message
-
-    message body
-    has two lines
-    EOF
-
-    m = string_as_file(string_msg) { |f|
-      p.parse(f)
-    }
-    assert_instance_of(Mail::Message, m)
+  def common_test_parse(m)
+    assert_instance_of(RMail::Message, m)
     assert_equal("From matt@lickey.com  Mon Dec 24 00:00:06 2001",
                  m.header.mbox_from)
     assert_equal("matt@example.net", m.header[0])
@@ -41,13 +25,36 @@ class TestMailParser < TestBase
     assert_equal("message body\nhas two lines\n", m.body)
   end
 
+  def test_parse
+    p = RMail::Parser.new
+    assert_instance_of(RMail::Parser, p)
+
+    string_msg = <<-EOF
+From matt@lickey.com  Mon Dec 24 00:00:06 2001
+From:    matt@example.net
+To:   matt@example.com
+Subject: test message
+
+message body
+has two lines
+    EOF
+
+    m = string_as_file(string_msg) { |f|
+      p.parse(f)
+    }
+    common_test_parse(m)
+
+    m = p.parse(string_msg)
+    common_test_parse(m)
+  end
+
   def test_parse_simple_mime
-    p = Mail::Parser.new
+    p = RMail::Parser.new
     m = data_as_file('parser.simple-mime') { |f|
       p.parse(f)
     }
 
-    assert_instance_of(Mail::Message, m)
+    assert_instance_of(RMail::Message, m)
     assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header[0])
     assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header['from'])
     assert_equal("Ned Freed <ned@innosoft.com>", m.header[1])
@@ -92,7 +99,7 @@ It DOES end with a linebreak.
 
   def test_parse_nested_simple
     m = data_as_file('parser.nested-simple') { |f|
-      Mail::Parser.new.parse(f)
+      RMail::Parser.new.parse(f)
     }
     assert_nil(m.preamble)
     assert_nil(m.part(0).preamble)
@@ -100,7 +107,7 @@ It DOES end with a linebreak.
     assert_nil(m.epilogue)
 
     m = data_as_file('parser.nested-simple2') { |f|
-      Mail::Parser.new.parse(f)
+      RMail::Parser.new.parse(f)
     }
 
     assert_nil(m.preamble)
@@ -109,7 +116,7 @@ It DOES end with a linebreak.
     assert_equal("\n", m.epilogue)
 
     m = data_as_file('parser.nested-simple3') { |f|
-      Mail::Parser.new.parse(f)
+      RMail::Parser.new.parse(f)
     }
 
     assert_equal("\n", m.preamble)
@@ -119,7 +126,7 @@ It DOES end with a linebreak.
   end
 
   def test_parse_nested_multipart
-    p = Mail::Parser.new
+    p = RMail::Parser.new
     m = data_as_file('parser.nested-multipart') { |f|
       p.parse(f)
     }
@@ -219,7 +226,7 @@ It DOES end with a linebreak.
   end
 
   def test_parse_rfc822
-    p = Mail::Parser.new
+    p = RMail::Parser.new
     m = data_as_file('parser.rfc822') do |f|
       p.parse(f)
     end
@@ -227,8 +234,8 @@ It DOES end with a linebreak.
   end
 
   def test_s_new
-    p = Mail::Parser.new
-    assert_instance_of(Mail::Parser, p)
+    p = RMail::Parser.new
+    assert_instance_of(RMail::Parser, p)
   end
 
 end

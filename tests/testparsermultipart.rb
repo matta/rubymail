@@ -8,16 +8,16 @@
 #
 
 require 'tests/testbase'
-require 'mail/parser/multipart'
+require 'rmail/parser/multipart'
 
-class TestMailParserMultipart < TestBase
+class TestRMailParserMultipart < TestBase
 
   # FIXME: TODO
   # - test \n -vs- \r\n -vs \r end of line characters
 
   def parse_multipart(file, boundary, chunk_size, expected_results)
     data_as_file(file) { |f|
-      parser = Mail::Parser::MultipartReader.new(f, boundary)
+      parser = RMail::Parser::MultipartReader.new(f, boundary)
 
       results = []
       chunk = nil
@@ -55,7 +55,7 @@ class TestMailParserMultipart < TestBase
 
   def test_basic
     data_as_file('parser.multipart.basic') { |f|
-      p = Mail::Parser::MultipartReader.new(f, "boundary")
+      p = RMail::Parser::MultipartReader.new(f, "boundary")
 
       assert(p.preamble?)
       assert(!p.epilogue?)
@@ -116,8 +116,8 @@ class TestMailParserMultipart < TestBase
 
   def test_s_new
     data_as_file('parser.multipart.basic') { |f|
-      p = Mail::Parser::MultipartReader.new(f, "foo")
-      assert_kind_of(Mail::Parser::MultipartReader, p)
+      p = RMail::Parser::MultipartReader.new(f, "foo")
+      assert_kind_of(RMail::Parser::MultipartReader, p)
     }
   end
 

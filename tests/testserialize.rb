@@ -8,21 +8,21 @@
 #
 
 require 'tests/testbase'
-require 'mail/serialize'
-require 'mail/message'
+require 'rmail/serialize'
+require 'rmail/message'
 
-class TestMailSerialize < TestBase
+class TestRMailSerialize < TestBase
   def test_serialize_empty
-    s = Mail::Serialize.new('').serialize(Mail::Message.new)
+    s = RMail::Serialize.new('').serialize(RMail::Message.new)
     assert_equal("\n", s)
   end
 
   def test_serialize_basic
-    m = Mail::Message.new
+    m = RMail::Message.new
     m.header['to'] = "bob@example.net"
     m.header['from'] = "sally@example.net"
     m.body = "This is the body."
-    s = Mail::Serialize.new('').serialize(m)
+    s = RMail::Serialize.new('').serialize(m)
     assert_equal(%q{to: bob@example.net
 from: sally@example.net
 
@@ -32,9 +32,9 @@ This is the body.
   end
 
   def test_serialize_boundary_generation
-    m = Mail::Message.new
-    m.add_part(Mail::Message.new)
-    m.add_part(Mail::Message.new)
+    m = RMail::Message.new
+    m.add_part(RMail::Message.new)
+    m.add_part(RMail::Message.new)
 
     m.part(0).body = "body0\n"
     m.part(1).body = "body1\n"
@@ -46,22 +46,22 @@ This is the body.
   end
 
   def test_serialize_multipart_basic
-    m = Mail::Message.new
+    m = RMail::Message.new
     m.header['to'] = "bob@example.net"
     m.header['from'] = "sally@example.net"
     m.header.set_boundary('=-=-=')
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.body = "This is a text/plain part."
     m.add_part(part)
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.body = "This is a whacked out wacky part.\n"
     part.header['Content-Disposition'] = 'inline'
     m.add_part(part)
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.body = "This is another whacked out wacky part.\n\n"
     part.header['Content-Disposition'] = 'inline'
     m.add_part(part)
-    s = Mail::Serialize.new('').serialize(m)
+    s = RMail::Serialize.new('').serialize(m)
     assert_equal(%q{to: bob@example.net
 from: sally@example.net
 Content-Type: multipart/mixed; boundary="=-=-="
@@ -87,20 +87,20 @@ This is another whacked out wacky part.
   end
 
   def test_serialize_multipart_nested
-    m = Mail::Message.new
+    m = RMail::Message.new
     m.header.set_boundary('=-=-=')
 
-    part = Mail::Message.new
+    part = RMail::Message.new
     m.add_part(part)
     m.part(0).header.set_boundary('==-=-=')
 
-    part = Mail::Message.new
-    m.part(0).add_part(Mail::Message.new)
+    part = RMail::Message.new
+    m.part(0).add_part(RMail::Message.new)
 
-    part = Mail::Message.new
-    m.part(0).add_part(Mail::Message.new)
+    part = RMail::Message.new
+    m.part(0).add_part(RMail::Message.new)
 
-    s = Mail::Serialize.new('').serialize(m)
+    s = RMail::Serialize.new('').serialize(m)
     assert_equal(%q{Content-Type: multipart/mixed; boundary="=-=-="
 MIME-Version: 1.0
 
@@ -118,7 +118,7 @@ Content-Type: multipart/mixed; boundary="==-=-="
   end
 
   def test_serialize_multipart_epilogue_preamble
-    m = Mail::Message.new
+    m = RMail::Message.new
     m.preamble = %q{This is a multipart message in MIME format.
 You are not using a message reader that understands MIME format.
 Sucks to be you.}
@@ -130,24 +130,24 @@ Sucks to be you.
     m.header['from'] = "sally@example.net"
     m.header.set_boundary('=-=-=')
 
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.preamble = "SHOULD NOT SHOW UP"
     part.body = "This is the body of the first part."
     part.epilogue = "SHOULD NOT SHOW UP"
     m.add_part(part)
 
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.body = "This is the body of the second part.\n"
     part.header['Content-Disposition'] = 'inline'
     m.add_part(part)
 
-    part = Mail::Message.new
+    part = RMail::Message.new
     part.body = "This is the body of the third part.\n\n"
     part.header['Content-Disposition'] = "inline\n"
     part.header['X-Silly-Header'] = "silly value\n"
     m.add_part(part)
 
-    s = Mail::Serialize.new('').serialize(m)
+    s = RMail::Serialize.new('').serialize(m)
     assert_equal(%q{to: bob@example.net
 from: sally@example.net
 Content-Type: multipart/mixed; boundary="=-=-="
@@ -179,7 +179,7 @@ Sucks to be you.
                  s)
 
     m.epilogue = "foo\n\n"
-    s = Mail::Serialize.new('').serialize(m)
+    s = RMail::Serialize.new('').serialize(m)
     assert_equal(%q{to: bob@example.net
 from: sally@example.net
 Content-Type: multipart/mixed; boundary="=-=-="

@@ -11,13 +11,10 @@ Thanks to Perl's MimeTools for:
     - Accessing MIME parts via a File like API (thereby allowing them
       to be stored on disk).
 
-Thanks to TMDA for:
+"Yoshinori K. Okuji" <okuji-at-enbug-dot-org>
 
-    - The idea of tacking on an HMAC to address extensions
-      (Mail::AddressTagger).
-    - Inspiring me to write Mail::KeyedMailbox, which can be used for
-      simple TMDA-style confirmation queues.
-
+    - Code to parse messages from strings.
+    - Numerous other API suggestions and improvements.
 
 Local Variables:
 mode : indented-text

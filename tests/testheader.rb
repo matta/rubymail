@@ -8,12 +8,12 @@
 =end
 
 require 'tests/testbase'
-require 'mail/header'
+require 'rmail/header'
 
-class TestMailHeader < TestBase
+class TestRMailHeader < TestBase
 
   def test_AREF # '[]'
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['From'] = 'setting1'
     h['From'] = 'setting2'
     h['From'] = 'setting3'
@@ -41,7 +41,7 @@ class TestMailHeader < TestBase
     bob_value = "bobvalue"
     sally = "Sally"
     sally_value = "sallyvalue"
-    h = Mail::Header.new
+    h = RMail::Header.new
 
     assert_same(bob_value, h[bob] = bob_value)
     assert_same(sally_value, h[sally] = sally_value)
@@ -65,7 +65,7 @@ class TestMailHeader < TestBase
 
     # Test that we can pass in symbols and they get converted to
     # strings
-    h = Mail::Header.new
+    h = RMail::Header.new
     h[:Kelly] = :the_value
     h.each_with_index do |pair, index|
       case index
@@ -80,7 +80,7 @@ class TestMailHeader < TestBase
     end
 
     # Test that the : will be stripped
-    h = Mail::Header.new
+    h = RMail::Header.new
     h["bob:"] = "bob"
     h["sally : "] = "sally"
     h.each_with_index do |pair, index|
@@ -98,8 +98,8 @@ class TestMailHeader < TestBase
   end
 
   def test_EQUAL # '=='
-    h1 = Mail::Header.new
-    h2 = Mail::Header.new
+    h1 = RMail::Header.new
+    h2 = RMail::Header.new
     assert_equal(h1, h2)
     assert_equal(h2, h1)
 
@@ -110,22 +110,22 @@ class TestMailHeader < TestBase
     assert_equal(h1, h2)
     assert_equal(h2, h1)
 
-    h1 = Mail::Header.new
-    h2 = Mail::Header.new
+    h1 = RMail::Header.new
+    h2 = RMail::Header.new
     h1['foo'] = 'a'
     h2['foo'] = 'b'
     assert(! (h1 == h2))
     assert(! (h2 == h1))
 
-    h1 = Mail::Header.new
-    h2 = Mail::Header.new
+    h1 = RMail::Header.new
+    h2 = RMail::Header.new
     h1['foo'] = 'a'
     h2['foo'] = 'a'
     h1.mbox_from = "From bo diddly"
     assert(! (h1 == h2))
     assert(! (h2 == h1))
 
-    h1 = Mail::Header.new
+    h1 = RMail::Header.new
     assert(! (h1 == Object.new))
     assert(! (h1 == Hash.new))
     assert(! (h1 == Array.new))
@@ -140,7 +140,7 @@ class TestMailHeader < TestBase
     bob_value = "bobvalue"
     sally = "Sally"
     sally_value = "sallyvalue"
-    h = Mail::Header.new
+    h = RMail::Header.new
 
     assert_same(h, h.add(bob, bob_value))
     assert_same(h, h.add(sally, sally_value))
@@ -164,7 +164,7 @@ class TestMailHeader < TestBase
 
     # Test that we can pass in symbols and they get converted to
     # strings
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_same(h, h.add(:Kelly, :the_value))
     h.each_with_index do |pair, index|
       case index
@@ -179,7 +179,7 @@ class TestMailHeader < TestBase
     end
 
     # Test that we can put stuff in arbitrary locations
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_same(h, h.add("last", "last value"))
     assert_same(h, h.add("first", "first value", 0))
     assert_same(h, h.add("middle", "middle value", 1))
@@ -201,14 +201,14 @@ class TestMailHeader < TestBase
     end
 
     # Test the params argument
-    h = Mail::Header.new
+    h = RMail::Header.new
     h.add("name", "value", nil, 'param1' => 'value1', 'param2' => '+value2')
     assert_equal('value; param1=value1; param2="+value2"', h['name'])
   end
 
   def test_clear
     # Test that we can put stuff in arbitrary locations
-    h = Mail::Header.new
+    h = RMail::Header.new
     h.add("first", "first value", 0)
     h.add("middle", "middle value", 1)
     h.add("last", "last value")
@@ -226,7 +226,7 @@ class TestMailHeader < TestBase
   end
 
   def test_dup
-    h1 = Mail::Header.new
+    h1 = RMail::Header.new
     h1["field1"] = "field1 value"
     h1.mbox_from = "mbox from"
     h2 = h1.dup
@@ -261,7 +261,7 @@ class TestMailHeader < TestBase
   end
 
   def test_clone
-    h1 = Mail::Header.new
+    h1 = RMail::Header.new
     h1["field1"] = "field1 value"
     h1.mbox_from = "mbox from"
     h2 = h1.clone
@@ -290,7 +290,7 @@ class TestMailHeader < TestBase
     assert_nil(h2["field2"])
 
     # Make sure singleton methods are carried over through a clone
-    h1 = Mail::Header.new
+    h1 = RMail::Header.new
     def h1.my_singleton_method
     end
     assert_respond_to(:my_singleton_method, h1)
@@ -300,12 +300,12 @@ class TestMailHeader < TestBase
   end
 
   def test_replace
-    h1 = Mail::Header.new
+    h1 = RMail::Header.new
     h1['From'] = "bob@example.net"
     h1['To'] = "sam@example.net"
     h1.mbox_from = "mbox from"
 
-    h2 = Mail::Header.new
+    h2 = RMail::Header.new
     h2['From'] = "sally@example.net"
     h2.mbox_from = "h2 mbox from"
 
@@ -318,11 +318,11 @@ class TestMailHeader < TestBase
     e = assert_exception(TypeError) {
       h2.replace("hi mom")
     }
-    assert_equal('String is not of type Mail::Header', e.message)
+    assert_equal('String is not of type RMail::Header', e.message)
   end
 
   def test_delete
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['Foo'] = 'bar'
     h['Bazo'] = 'bingo'
     h['Foo'] =  'yo'
@@ -333,7 +333,7 @@ class TestMailHeader < TestBase
   end
 
   def test_delete_at
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['Foo'] = 'bar'
     h['Bazo'] = 'bingo'
     h['Foo'] =  'yo'
@@ -349,7 +349,7 @@ class TestMailHeader < TestBase
   end
 
   def test_delete_if
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['Foo'] = 'bar'
     h['Bazo'] = 'bingo'
     h['Foo'] =  'yo'
@@ -364,7 +364,7 @@ class TestMailHeader < TestBase
   end
 
   def each_helper(method)
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['name1'] = 'value1'
     h['name2'] = 'value2'
 
@@ -389,7 +389,7 @@ class TestMailHeader < TestBase
   end
 
   def each_name_helper(method)
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['name1'] = 'value1'
     h['name2'] = 'value2'
 
@@ -413,7 +413,7 @@ class TestMailHeader < TestBase
   end
 
   def test_each_value
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['name1'] = 'value1'
     h['name2'] = 'value2'
 
@@ -429,14 +429,14 @@ class TestMailHeader < TestBase
   end
 
   def test_empty?
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert(h.empty?)
     h['To'] = "president@example.com"
     assert_equal(false, h.empty?)
   end
 
   def test_fetch
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['To'] = "bob@example.net"
     h['To'] = "sally@example.net"
 
@@ -451,7 +451,7 @@ class TestMailHeader < TestBase
   end
 
   def test_fetch_all
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['To'] = "bob@example.net"
     h['To'] = "sally@example.net"
 
@@ -467,7 +467,7 @@ class TestMailHeader < TestBase
   end
 
   def field_helper(method)
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['Subject'] = 'the sky is blue'
     assert(h.send(method, 'Subject'))
     assert_equal(false, h.send(method, 'Return-Path'))
@@ -494,7 +494,7 @@ class TestMailHeader < TestBase
   end
 
   def test_select
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['To'] = 'matt@example.net'
     h['From'] = 'bob@example.net'
     h['Subject'] = 'test_select'
@@ -506,7 +506,7 @@ class TestMailHeader < TestBase
   end
 
   def names_helper(method)
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_equal([], h.send(method))
     h['To'] = 'matt@example.net'
     h['from'] = 'bob@example.net'
@@ -523,7 +523,7 @@ class TestMailHeader < TestBase
   end
 
   def length_helper(method)
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_equal(0, h.send(method))
     h['To'] = 'matt@example.net'
     assert_equal(1, h.send(method))
@@ -546,7 +546,7 @@ class TestMailHeader < TestBase
   end
 
   def test_to_a
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_equal([ ], h.to_a)
     h['To'] = 'to value'
     h['From'] = 'from value'
@@ -555,7 +555,7 @@ class TestMailHeader < TestBase
   end
 
   def test_to_string
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_equal("", h.to_string(true))
     assert_equal("", h.to_string(false))
     assert_equal(h.to_s, h.to_string(true))
@@ -575,14 +575,14 @@ EOF
   end
 
   def test_s_new
-    h = Mail::Header.new
-    assert_instance_of(Mail::Header, h)
+    h = RMail::Header.new
+    assert_instance_of(RMail::Header, h)
     assert_equal(0, h.length)
     assert_nil(h[0])
   end
 
   def test_mbox_from()
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_nil(h.mbox_from)
 
     # FIXME: should do some basic sanity checks on its argument.
@@ -627,11 +627,11 @@ EOF
 	   "result has too few elements (#{index} < #{result.length})")
   end
 
-  def verify_match(header, name, regexp, expected_result)
-    h = header.match(name, regexp)
-    assert_kind_of(Mail::Header, h)
+  def verify_match(header, name, value, expected_result)
+    h = header.match(name, value)
+    assert_kind_of(RMail::Header, h)
     if h.length == 0
-      assert_equal(nil, expected_result)
+      assert_equal(expected_result, nil)
     else
       assert_not_nil(expected_result)
       compare_header(h, expected_result)
@@ -639,7 +639,7 @@ EOF
   end
 
   def test_match
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['To'] = 'bob@example.net'
     h['Cc'] = 'sammy@example.com'
     h['Resent-To'] = 'president@example.com'
@@ -650,35 +650,36 @@ EOF
       h.match(12, "foo")
     }
     assert_match(/name not a Regexp or String/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match(/not_case_insensitive/, "foo")
     }
-    assert_match(/name regexp is not case insensitive/, e.message)
     e = assert_exception(ArgumentError) {
       h.match(/this is okay/i, 12)
     }
     assert_match(/value not a Regexp or String/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match(/this is okay/i, /this_not_multiline_or_insensitive/)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match(/this is okay/i, /this_not_multiline/i)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match(/this is okay/i, /this_not_inesnsitive/m)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
 
     verify_match(h, /./i, /this will not match anything/im, nil)
+
     verify_match(h, "to", /./im,
 		 [ [ 'To', "bob@example.net" ] ])
+
     verify_match(h, "tO", /./im,
 		 [ [ 'To', "bob@example.net" ] ])
+
     verify_match(h, "To", /./im,
 		 [ [ 'To', "bob@example.net" ] ])
+
     verify_match(h, "^to", /./im, nil)
+
     verify_match(h, /^(to|cc|resent-to)/i, /.*/im,
 		 [ [ 'To', "bob@example.net" ],
 		   [ 'Cc', "sammy@example.com" ],
@@ -686,47 +687,47 @@ EOF
   end
 
   def test_match?
-    h = Mail::Header.new
+    h = RMail::Header.new
     h['To'] = 'bob@example.net'
     h['Cc'] = 'sammy@example.com'
     h['Resent-To'] = 'president@example.com'
-    h['Subject'] = 'yoda lives!'
+    h['Subject'] = "yoda\n lives! [bob]\\s"
 
     # First verify argument type checking
     e = assert_exception(ArgumentError) {
       h.match?(12, "foo")
     }
     assert_match(/name not a Regexp or String/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match?(/not_case_insensitive/, "foo")
     }
-    assert_match(/name regexp is not case insensitive/, e.message)
     e = assert_exception(ArgumentError) {
       h.match?(/this is okay/i, 12)
     }
     assert_match(/value not a Regexp or String/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match?(/this is okay/i, /this_not_multiline_or_insensitive/)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match?(/this is okay/i, /this_not_multiline/i)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
-    e = assert_exception(ArgumentError) {
+    assert_no_exception {
       h.match?(/this is okay/i, /this_not_inesnsitive/m)
     }
-    assert_match(/value regexp not multiline or case insensitive/, e.message)
 
     assert_equal(false, h.match?(/./i, /this will not match anything/im))
     assert_equal(true, h.match?("to", /./im))
     assert_equal(true, h.match?("To", /./im))
     assert_equal(false, h.match?("^to", /./im))
     assert_equal(true, h.match?(/^(to|cc|resent-to)/i, /.*/im))
+    assert_equal(true, h.match?('subject', 'yoda'))
+    assert_equal(true, h.match?('subject', /yoda\s+lives/))
+    assert_equal(true, h.match?('subject', '[bob]\s'))
+    assert_equal(true, h.match?('subject', '[BOB]\s'))
   end
 
   def test_content_type
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_equal(nil, h.content_type)
 
     h['content-type'] = ' text/html; charset=ISO-8859-1'
@@ -738,7 +739,7 @@ EOF
   end
 
   def test_media_type
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_nil(h.media_type)
     assert_equal("foo", h.media_type("foo"))
     assert_equal("bar", h.media_type("foo") { "bar" })
@@ -752,7 +753,7 @@ EOF
   end
 
   def test_subtype
-    h = Mail::Header.new
+    h = RMail::Header.new
     assert_nil(h.subtype)
     assert_equal("foo", h.subtype("foo"))
     assert_equal("bar", h.subtype("foo") { "bar" })
@@ -767,7 +768,7 @@ EOF
 
   def test_params
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       assert_nil(h.params('foo'))
       assert_nil(h.params('foo', nil))
 
@@ -784,7 +785,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'attachment;
 	filename="delete_product_recover_flag.cmd"'
       assert_equal( { "filename" => "delete_product_recover_flag.cmd" },
@@ -792,7 +793,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'attachment;
 	filename="delete=_product=_recover;_flag;.cmd"'
       assert_equal( { "filename" => "delete=_product=_recover;_flag;.cmd" },
@@ -800,7 +801,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = '  attachment  ;
 	filename  =  "trailing_Whitespace.cmd"  '
       assert_equal( { "filename" => "trailing_Whitespace.cmd" },
@@ -808,32 +809,32 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = ''
       assert_equal({}, h.params('content-disposition'))
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = '   '
       assert_equal({}, h.params('content-disposition'))
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = '='
       assert_equal({}, h.params('content-disposition'))
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'ass; param1 = "p1"; param2 = "p2"'
       assert_equal({ 'param1' => 'p1',
                      'param2' => 'p2' }, h.params('content-disposition'))
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'ass; Foo = "" ; bar = "asdf"'
       assert_equal({ "foo" => '""',
                      "bar" => "asdf" }, h.params('content-disposition'))
@@ -842,7 +843,7 @@ EOF
 
   def test_set_boundary
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h.set_boundary("b")
       assert_equal("b", h.param('content-type', 'boundary'))
       assert_equal("multipart/mixed", h.content_type)
@@ -850,7 +851,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['content-type'] = "multipart/alternative"
       h.set_boundary("b")
       assert_equal("b", h.param('content-type', 'boundary'))
@@ -859,7 +860,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['content-type'] = 'multipart/alternative; boundary="a"'
       h.set_boundary("b")
       assert_equal("b", h.param('content-type', 'boundary'))
@@ -871,7 +872,7 @@ EOF
 
   def test_params_random_string
 #     find_shortest_failure("],C05w\010O\e]b\">%\023[1{:L1o>B\"|\024fDJ@u{)\\\021\t\036\034)ZJ\034&/+]owh=?{Yc)}vi\000\"=@b^(J'\\,O|4v=\"q,@p@;\037[\"{!Dg*(\010\017WQ]:Q;$\004x]\032\035\003a#\"=;\005@&\003:;({>`y{?<X\025vb\032\037\"\"K8\025u[cb}\001;k', k\a/?xm1$\n_?Z\025t?\001,_?O=\001\003U,Rk<\\\027w]j@?J(5ybTb\006\0032@@4\002JP W,]EH|]\\G\e\003>.p/\022jP\f/4U)\006+\022(<{|.<|]]\032.,N,\016\000\036T,;\\49C>C[{b[v") { |str|
-#       h = Mail::Header.new
+#       h = RMail::Header.new
 #       h['header'] = str
 #       h.params('header')
 #     }
@@ -891,7 +892,7 @@ EOF
 	}.to_s ]
       strings.each {|string|
 	assert_no_exception("failed for string #{string.inspect}") {
-          h = Mail::Header.new
+          h = RMail::Header.new
           h['header'] = string
           params = h.params('header')
           params.each { |name, value|
@@ -906,7 +907,7 @@ EOF
 
   def test_param
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       assert_nil(h.param('bar', 'foo'))
       assert_nil(h.param('bar', 'foo', nil))
 
@@ -924,7 +925,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'attachment;
 	filename="delete_product_recover_flag.cmd"'
       assert_equal('delete_product_recover_flag.cmd',
@@ -934,7 +935,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = 'attachment;
 	filename="delete=_product=_recover;_flag;.cmd"'
       assert_equal("delete=_product=_recover;_flag;.cmd",
@@ -942,7 +943,7 @@ EOF
     end
 
     begin
-      h = Mail::Header.new
+      h = RMail::Header.new
       h['Content-Disposition'] = '  attachment  ;
 	filename  =  "  trailing_Whitespace.cmd  "  '
       assert_equal("  trailing_Whitespace.cmd  ",

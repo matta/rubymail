@@ -84,8 +84,7 @@ class TestBase < RUNIT::TestCase
   end
 
   def setup
-    @scratch_dir = File.join(Dir.getwd, "_scratch_" +
-                             name.gsub(/^(.*?)\((.*)\)$/, '\2#\1'))
+    @scratch_dir = File.join(Dir.getwd, "_scratch_" + name)
     @data_dir = File.join(Dir.getwd, "tests", "data")
     @scratch_hash = {}
 
@@ -122,7 +121,7 @@ class TestBase < RUNIT::TestCase
   end
 
   def teardown
-    unless $!
+    unless $! || ((defined? passed?) && !passed?)
       cleandir(@scratch_dir)
       Dir.rmdir(@scratch_dir) if FileTest.directory?(@scratch_dir)
     end

@@ -1,3 +1,33 @@
+* Changes in Rubymail 0.8 (released 2002-03-18)
+
+** The following has been removed from RubyMail and made part of the
+   RubyFilter package:
+
+ - All scripts that were in the RubyMail 0.7 bin directory.
+ - Mail::LDA
+ - Mail::Deliver
+ - Mail::KeyedMailbox
+ - Mail::MTA
+ - Mail::AddressTagger
+
+   This keeps RubyMail a small and simple mail package, and provides
+   RubyFilter as an example of how to use RubyMail to write a mail
+   filter.
+
+** The Mail module has been renamed to RMail.  I think "Mail" should
+   be reserved for things included in the standard distribution of
+   Ruby.
+
+**  RMail::Header#match and match? don't require the name or value
+    arguments to be a case insensitive Regexps.  Also, when the value
+    argument is converted to a string, it is passed through
+    Regexp::escape first.
+
+** RMail::Parser#parse can now parse from a string.
+
+** Mail::Address#comments= can now take a simpple string to set just
+   one comment.
+
 * Changes in RubyMail 0.7 (released 2002-02-26)
 
 ** A new chunked input scheme that makes parsing huge messages about 7
@@ -79,8 +109,8 @@
 ** Add a KeyedMailbox class that can be used to implement simple
    mailing list style confirmations.
 
-** Add a message= method to Mail::LDA.  This lets delivery scripts
-   change the message being delivered.
+** Add a message= method to Mail::DeliveryAgent.  This lets delivery
+   scripts change the message being delivered.
 
 ** Re-wrote the RFC2822 address parser.  It is now more strict about
    what it considers a valid address.
@@ -90,9 +120,10 @@
 ** The bin/rdeliver.rb script is now tested.  Got rid of
    bin/rdeliver-wrap.rb.
 
-** Mail::LDA::DeliveryStatus renamed to Mail::LDA::DeliveryComplete.
-   Mail::LDA::DeliverFailure renamed to
-   Mail::LDA::DeliveryPipeFailure.
+** Mail::DeliveryAgent::DeliveryStatus renamed to
+   Mail::DeliveryAgent::DeliveryComplete.
+   Mail::DeliveryAgent::DeliverFailure renamed to
+   Mail::DeliveryAgent::DeliveryPipeFailure.
 
 ** Mail::Deliver.deliver_mbox now uses File::SYNC to write the
    message.
@@ -106,11 +137,11 @@
    Array and Hash.
 
 ** Mail::Deliver supports delivery to qmail style Maildir mailboxes.
-   Mail::LDA#save will now deliver to a Maildir if the folder's name
-   ends in a slash.  E.g. "/home/user/Maildir/".
+   Mail::DeliveryAgent#save will now deliver to a Maildir if the
+   folder's name ends in a slash.  E.g. "/home/user/Maildir/".
 
-** Mail::LDA no longer logs an abstract of the message being
-   delivered.  All logging is up to the users of Mail::LDA.
+** Mail::DeliveryAgent no longer logs an abstract of the message being
+   delivered.  All logging is up to the users of Mail::DeliveryAgent.
 
 * Changes in RubyMail 0.3
 
@@ -123,25 +154,28 @@
 
 ** New Mail::MTA module that provides constants for exit codes.
 
-** New features for Mail::LDA.  Now Mail::LDA never calls exit,
-   instead it throws DeliveryStatus exceptions.  There is also a new
-   Mail::LDA.process method that allows you to use Mail::LDA in block
-   form.  Mail:LDA.exitcode will return the correct exit code for a
+** New features for Mail::DeliveryAgent.  Now Mail::DeliveryAgent
+   never calls exit, instead it throws DeliveryStatus exceptions.
+   There is also a new Mail::DeliveryAgent.process method that allows
+   you to use Mail::DeliveryAgent in block form.
+   Mail:DeliveryAgent.exitcode will return the correct exit code for a
    given DeliveryStatus exception.
 
 * Changes in RubyMail 0.2
 
 ** HTML API documentation is now available in the doc subdirectory.
 
-** Mail::LDA::strip_tag is now Mail::LDA::strip_field_name.
+** Mail::DeliveryAgent::strip_tag is now
+   Mail::DeliveryAgent::strip_field_name.
 
-** Mail::Deliver::deliver_pipe implemented.  Mail::LDA#pipe
+** Mail::Deliver::deliver_pipe implemented.  Mail::DeliveryAgent#pipe
    implemented.
 
-** Mail::LDA#pipe and Mail::LDA#save now report success or failure with
-   DeliverySuccess and DeliveryFailure exceptions.  Mail::LDA#reject
-   and Mail::LDA#defer do not yet use the exceptions (they still call
-   exit).
+** Mail::DeliveryAgent#pipe and Mail::DeliveryAgent#save now report
+   success or failure with DeliverySuccess and DeliveryFailure
+   exceptions.  Mail::DeliveryAgent#reject and
+   Mail::DeliveryAgent#defer do not yet use the exceptions (they still
+   call exit).
 
 ** Now runs clean under "ruby -w"
 

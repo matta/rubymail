@@ -8,9 +8,9 @@
 =end
 
 require 'tests/testbase'
-require 'mail/address'
+require 'rmail/address'
 
-class TestMailAddress < TestBase
+class TestRMailAddress < TestBase
 
   def domain_optional
     # Set to true for tests that include addresses without a domain
@@ -35,7 +35,7 @@ class TestMailAddress < TestBase
   end
 
   def validate_interface(address)
-    assert_instance_of(Mail::Address, address)
+    assert_instance_of(RMail::Address, address)
 
     validate_method(address, :display_name) { |ret|
       assert_instance_of(String, ret) unless ret.nil?
@@ -75,7 +75,7 @@ class TestMailAddress < TestBase
     begin
       prev_debug = $DEBUG
       $DEBUG = debug
-      results = Mail::Address.parse(testcase[0])
+      results = RMail::Address.parse(testcase[0])
     ensure
       $DEBUG = prev_debug
     end
@@ -637,12 +637,12 @@ class TestMailAddress < TestBase
   def test_misc_addresses()
 
     # Make sure that parsing empty stuff works
-    assert_equal([], Mail::Address.parse(nil))
-    assert_equal([], Mail::Address.parse(""))
-    assert_equal([], Mail::Address.parse(" "))
-    assert_equal([], Mail::Address.parse("\t"))
-    assert_equal([], Mail::Address.parse("\n"))
-    assert_equal([], Mail::Address.parse("\r"))
+    assert_equal([], RMail::Address.parse(nil))
+    assert_equal([], RMail::Address.parse(""))
+    assert_equal([], RMail::Address.parse(" "))
+    assert_equal([], RMail::Address.parse("\t"))
+    assert_equal([], RMail::Address.parse("\n"))
+    assert_equal([], RMail::Address.parse("\r"))
 
     # From a bogus header I saw sent to ruby-talk
     validate_case([' ruby-talk@ruby-lang.org (ruby-talk ML),
@@ -1014,12 +1014,12 @@ class TestMailAddress < TestBase
 
     # These random strings have generated exceptions before, so test
     # them forever.
-    Mail::Address.parse("j732[S\031\022\000\fuh\003Ye<2psd\005#1L=Hw*c\0247\006\aE\fXJ\026;\026\032zAAgpCFq+\010")
-    Mail::Address.parse("\016o7=\024d^\001|h<,#\026~(<oS\005 f<u\022u+4\"\020d \023h\004)\036\016\023YY0\n]W]'\025S\t\035")
-    Mail::Address.parse("<")
-    Mail::Address.parse("J.:")
+    RMail::Address.parse("j732[S\031\022\000\fuh\003Ye<2psd\005#1L=Hw*c\0247\006\aE\fXJ\026;\026\032zAAgpCFq+\010")
+    RMail::Address.parse("\016o7=\024d^\001|h<,#\026~(<oS\005 f<u\022u+4\"\020d \023h\004)\036\016\023YY0\n]W]'\025S\t\035")
+    RMail::Address.parse("<")
+    RMail::Address.parse("J.:")
 #     find_shortest_failure("\276\231J.^\351I:\2564") { |s|
-#       Mail::Address.parse(s)
+#       RMail::Address.parse(s)
 #     }
 
     0.upto(25) {
@@ -1037,7 +1037,7 @@ class TestMailAddress < TestBase
 	}.to_s ]
       strings.each {|string|
 	assert_no_exception("failed for string #{string.inspect}") {
-	  addrs = Mail::Address.parse(string)
+	  addrs = RMail::Address.parse(string)
 	  addrs.each {|address|
 	    method_list.each {|method|
 	      address.send(method)
@@ -1049,40 +1049,49 @@ class TestMailAddress < TestBase
   end
 
   def test_initialize
-    addr = Mail::Address.new
-    assert_instance_of(Mail::Address, addr)
+    addr = RMail::Address.new
+    assert_instance_of(RMail::Address, addr)
 
-    addr = Mail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>")
-    assert_instance_of(Mail::Address, addr)
+    addr = RMail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>")
+    assert_instance_of(RMail::Address, addr)
     assert_equal("Bob Smith", addr.display_name)
     assert_equal("Bob Smith", addr.name)
     assert_equal("example.com", addr.domain)
     assert_equal("bobs", addr.local)
 
-    addr = Mail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>" +
+    addr = RMail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>" +
 			     ", Sally Joe (Hi Babe) <sallyj@test.example>")
-    assert_instance_of(Mail::Address, addr)
+    assert_instance_of(RMail::Address, addr)
     assert_equal("Bob Smith", addr.display_name)
     assert_equal("Bob Smith", addr.name)
     assert_equal("example.com", addr.domain)
     assert_equal("bobs", addr.local)
 
-    addr = Mail::Address.new("\177\177")
-    assert_instance_of(Mail::Address, addr)
+    addr = RMail::Address.new("\177\177")
+    assert_instance_of(RMail::Address, addr)
     assert_equal(nil, addr.display_name)
     assert_equal(nil, addr.name)
     assert_equal(nil, addr.domain)
     assert_equal(nil, addr.local)
 
     e = assert_exception(ArgumentError) {
-      Mail::Address.new(["bob"])
+      RMail::Address.new(["bob"])
     }
     e = assert_exception(ArgumentError) {
-      Mail::Address.new(Object.new)
+      RMail::Address.new(Object.new)
     }
     e = assert_exception(ArgumentError) {
-      Mail::Address.new(Hash.new)
+      RMail::Address.new(Hash.new)
     }
+  end
+
+  def test_comments
+    a = RMail::Address.new
+    assert_nil(a.comments)
+    a.comments = [ 'foo', 'bar' ]
+    assert_equal([ 'foo', 'bar' ], a.comments)
+    a.comments = 'foo'
+    assert_equal([ 'foo' ], a.comments)
   end
 
 end

@@ -8,19 +8,19 @@
 #
 
 require 'tests/testbase'
-require 'mail/parser'
-require 'mail/serialize'
+require 'rmail/parser'
+require 'rmail/serialize'
 
-class TestMailTransparency < TestBase
+class TestRMailTransparency < TestBase
   def do_file(file)
     message1 = data_as_file(file) { |f|
-      Mail::Parser.new.parse(f)
+      RMail::Parser.new.parse(f)
     }
     scratch_base = "temp-" + file.gsub(/[^\w]/, '-')
     message2 = File.open(scratch_filename(scratch_base), "w+") { |f|
-      Mail::Serialize.new(f).serialize(message1)
+      RMail::Serialize.new(f).serialize(message1)
       f.seek(0)
-      Mail::Parser.new.parse(f)
+      RMail::Parser.new.parse(f)
     }
     if message1 != message2
       pp message1

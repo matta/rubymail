@@ -11,12 +11,13 @@ To reach the author of RubyMail, send mail to matt@lickey.com.
 What is RubyMail?
 
     This is RubyMail, a lightweight mail library containing various
-    utility classes and modules that allow Ruby scripts to process
-    email.
+    utility classes and modules that allow Ruby scripts to parse,
+    modify, and generate MIME mail messages.
 
 Status
 
-    This package is currently very raw.  All API is subject to change.
+    This package works well, but I consider all API subject to change.
+
     I very much appreciate suggestions and comments, but please think
     twice about using this for production use just yet.
 
@@ -33,11 +34,10 @@ Why?
 
     It is fun.
 
-Why not use TMail?
+    One use for RubyMail is the RubyFilter package, available at:
 
-    A much more mature mail library is available for Ruby -- TMail by
-    Minero Aoki.  Please use it if you need a more stable API, or
-    something with more features.
+        http://www.lickey.com/rubyfilter/
 
-    TMail requires several C language Ruby extensions, while RubyMail
-    is in pure Ruby.  Maybe this matters to you, maybe it doesn't.
+Alternatives
+
+    You might check out TMail as well.

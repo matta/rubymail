@@ -1,0 +1,113 @@
+Primarily concerned about mailbox, mailbox-list, and address-list
+
+    mailbox - sender, resent-sender
+
+    mailbox-list - from, resent-from
+
+    address-list - reply-to, to, cc, bcc, resent-to, resent-cc, resent-bcc
+
+----------------------------------------------------------------------
+Tokens
+----------------------------------------------------------------------
+
+Primitive -- these do not appear in Address Spedifications
+----------------------------------------------------------------------
+
+NO-WS-CTL       =       %d1-8 /         ; US-ASCII control characters
+                        %d11 /          ;  that do not include the
+                        %d12 /          ;  carriage return, line feed,
+                        %d14-31 /       ;  and white space characters
+                        %d127
+
+atext           =       a-z / A-Z / ; Any character except controls,
+			0-9 /
+                        "!" / "#" /     ;  SP, and specials.
+                        "$" / "%" /     ;  Used for atoms
+                        "&" / "'" /
+                        "*" / "+" /
+                        "-" / "/" /
+                        "=" / "?" /
+                        "^" / "_" /
+                        "`" / "{" /
+                        "|" / "}" /
+                        "~"
+
+quoted-pair     =       "\" (%d0-127)
+
+qtext           =       NO-WS-CTL /     ; Non white space controls
+                        %d33 /          ; The rest of the US-ASCII
+                        %d35-91 /       ;  characters not including "\"
+                        %d93-126        ;  or the quote character
+
+WSP		=	%d32 / %d09		; SPACE or TAB
+
+ctext           =       NO-WS-CTL /     ; Non white space controls
+                        %d33-39 /       ; The rest of the US-ASCII
+                        %d42-91 /       ;  characters not including "(",
+                        %d93-126        ;  ")", or "\"
+
+comment         =       "(" *([FWS] ccontent) [FWS] ")"
+
+ccontent        =       ctext / quoted-pair / comment
+
+qcontent	=	qtext / quoted-pair
+
+dtext           =       NO-WS-CTL /     ; Non white space controls
+                        %d33-90 /       ; The rest of the US-ASCII
+                        %d94-126        ;  characters not including "[",
+                                        ;  "]", or "\"
+
+Less primitive - these appear in Address Specifications
+----------------------------------------------------------------------
+
+FWS		=	1*([CRLF] WSP)
+
+CFWS            =       *([FWS] comment) (([FWS] comment) / FWS)
+
+atom		=	[CFWS] 1*atext [CFWS]
+
+quoted-string   =       [CFWS]
+                        " *([FWS] qcontent) [FWS] "
+                        [CFWS]
+
+phrase		=       word *(word / "." / CFWS)
+
+word            =       atom / quoted-string
+
+dcontent        =       dtext / quoted-pair
+
+----------------------------------------------------------------------
+Address Specification
+----------------------------------------------------------------------
+
+address-list    =       1*([address] [CFWS] "," [CFWS]) [address]
+
+address         =       mailbox / group
+
+mailbox		=	name-addr / addr-spec
+
+group           =       display-name ":" [mailbox-list / CFWS] ";"
+                        [CFWS]
+
+mailbox-list   =        1*([mailbox] [CFWS] "," [CFWS]) [mailbox]
+
+name-addr	=	[display-name] angle-addr
+
+display-name	=	phrase
+
+angle-addr	=	[CFWS] "<" [obs-route] addr-spec ">" [CFWS]
+
+obs-route       =       [CFWS] obs-domain-list ":" [CFWS]
+
+obs-domain-list =       "@" domain *(*(CFWS / "," ) [CFWS] "@" domain)
+
+domain          =       domain-literal / obs-domain
+
+domain-literal  =       [CFWS] "[" *([FWS] dcontent) [FWS] "]" [CFWS]
+
+obs-domain      =       atom *("." atom)
+
+addr-spec       =       local-part "@" domain
+
+local-part      =       word *("." word)
+
