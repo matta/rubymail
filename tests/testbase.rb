@@ -105,6 +105,14 @@ class TestBase < RUNIT::TestCase
     File.open(data_filename(name)) { |f|
       yield f
     }
+  rescue Errno::ENOENT
+    assert_fail("data file #{name.inspect} does not exist")
+  end
+
+  def data_as_string(name)
+    data_as_file(name) { |f|
+      f.read
+    }
   end
 
   def scratch_filename(name)
@@ -118,6 +126,13 @@ class TestBase < RUNIT::TestCase
       @scratch_hash[name] = temp
     end
     File.join(@scratch_dir, name)
+  end
+
+  def scratch_file_write(name)
+    name = scratch_filename(name)
+    File.open(name, 'w') { |f|
+      yield f
+    }
   end
 
   def teardown

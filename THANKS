@@ -11,10 +11,18 @@ Thanks to Perl's MimeTools for:
     - Accessing MIME parts via a File like API (thereby allowing them
       to be stored on disk).
 
+People:
+
 "Yoshinori K. Okuji" <okuji-at-enbug-dot-org>
 
     - Code to parse messages from strings.
     - Numerous other API suggestions and improvements.
+
+Booker Bense <bbense-at-SLAC-dot-Stanford-dot-EDU>
+
+    - For prodding me to implement mbox mailbox parsing (and an
+      initial implementation).  It took me months, but I did it!
+
 
 Local Variables:
 mode : indented-text

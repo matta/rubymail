@@ -10,53 +10,14 @@
 module RMail
   class Parser
 
-    class Error < StandardError
-    end
-
-    class StringReader
-      def initialize(str)
-        @str = str
-        @pos = 0
-        @size = str.size
-      end
-
-      def read(len = nil)
-        raise ArgumentError if len < 0
-        return nil if @size == @pos
-        len = @size - @pos if len.nil? or len > @size - @pos
-        @pos += len
-        @str[@pos - len, len]
-      end
-    end
-
-    class PushbackReader
-      def initialize(input)
-        unless defined? input.read
-          if input.kind_of?(String)
-            input = StringReader.new(input)
-          end
-        end
-        @input = input
-        @pushback = nil
-      end
-
-      def read(size = 16384)
-        if @pushback
-          temp = @pushback
-          @pushback = nil
-          temp
-        else
-          @input.read(size)
-        end
-      end
-
-      def pushback(string)
-        raise Error, 'You have already pushed a string back.' if @pushback
-        @pushback = string
-      end
-    end
+    require 'rmail/parser/pushbackreader'
 
     # A simple interface to facilitate parsing a multipart message.
+    #
+    # The typical RubyMail user will have no use for this class.
+    # Although it is an example of how to use a PushbackReader, the
+    # typical RubyMail user will never use a PushbackReader either.
+    # ;-)
     class MultipartReader < PushbackReader
 
       # Creates a MIME multipart parser.
@@ -75,8 +36,7 @@ module RMail
         super(input)
         @boundary = boundary
         escaped = Regexp.escape(boundary)
-        @boundary_re = /(\A|\n)--#{escaped}(--)?.*?(\n)?/
-        @first_chunk = true
+        @boundary_re = /\n--#{escaped}(--)?.*?\n/
         @might_be_boundary_re = might_be_boundary_re(@boundary)
         @caryover = nil
         @chunks = []
@@ -85,6 +45,7 @@ module RMail
         @found_last_boundary = false
         @in_epilogue = false
         @in_preamble = true
+        @have_read_first_byte = false
       end
 
       # Returns the next chunk of data from the input stream as a
@@ -94,7 +55,7 @@ module RMail
       #
       # If this method returns nil, you must call next_part to begin
       # reading the next MIME part in the data stream.
-      def read(chunk_size = 16384)
+      def read(chunk_size = @chunk_size)
 
         if @pushback
           temp = @pushback
@@ -147,8 +108,11 @@ module RMail
         # If we are reading the epilogue, skip all the boundary logic
         # above and just return the chunk without further processing.
         #
+        input_gave_nil = false
         loop {
           return nil if @eof || @found_boundary
+
+          puts "top of loop, @chunks now #{@chunks.inspect}" if $DEBUG
 
           unless @chunks.empty?
             chunk, @found_boundary, @found_last_boundary = @chunks.shift
@@ -157,7 +121,23 @@ module RMail
           end
 
           chunk = @input.read(chunk_size)
-          input_gave_nil = chunk.nil?
+
+          if !@have_read_first_byte && chunk && chunk.length > 0
+            # If the first byte we read is '-' we might be looking at
+            # the first boundary.  Prepend the newline so the regexps
+            # will find it.  We can't depend on chunk being any longer
+            # than one byte here.
+            if chunk[0] == ?-
+              chunk[0,0] = "\n"
+              puts "prepend newline to first chunk" if $DEBUG
+            end
+            @have_read_first_byte = true
+          end
+
+          puts "chunk read #{chunk.inspect}" if $DEBUG
+          if chunk.nil?
+            input_gave_nil = true
+          end
           if @caryover
             if chunk
               chunk[0, 0] = @caryover
@@ -166,28 +146,36 @@ module RMail
             end
             @caryover = nil
           end
+          puts "chunk w/carryover #{chunk.inspect}" if $DEBUG
+
+          if chunk && input_gave_nil
+            # If input didn't end with a newline, add one so our
+            # regexps work.
+            if chunk[-1] != ?\n
+              chunk << ?\n
+            end
+          end
 
           if chunk.nil?
+            puts "eof #{chunk.inspect}" if $DEBUG
             @eof = true
             return nil
           elsif @in_epilogue
+            puts "in epilogue, returning chunk #{chunk.inspect}" if $DEBUG
             return chunk
           end
 
           start = 0
           found_last_boundary = false
 
-          while found = chunk.index(@boundary_re, start)
-            # Insist on leading newline unless this is the very first
-            # chunk
-            if $~.end(1) == 0 && !@first_chunk
-              start = $~.end(0)
-              redo
-            end
-            # Make sure we've got the trailing newline
-            break unless $~.begin(3) || input_gave_nil
+          while start < chunk.length &&
+              found = chunk.index(@boundary_re, start)
+
+            puts "found boundary in #{chunk.inspect} at #{found.inspect} with start at #{start.inspect}" if
+              $DEBUG
             # check if boundary had the trailing --
-            if $~.begin(2)
+            if $~.begin(1)
+              puts "we found the last boundary" if $DEBUG
               found_last_boundary = true
             end
             temp = if found == start
@@ -195,55 +183,81 @@ module RMail
                    else
                      chunk[start, found - start]
                    end
+            puts "found boundary, saving chunk #{temp.inspect} off" if $DEBUG
             @chunks << [ temp, true, found_last_boundary ]
-            start = $~.end(0)
+            puts "chunks now #{@chunks.inspect}" if $DEBUG
+            # We start searching again beginning with the newline at
+            # the end of this line.
+            start = $~.end(0) - 1
+            puts "start now #{start.inspect} into #{chunk.inspect}" if $DEBUG
             break if found_last_boundary
           end
           chunk[0, start] = ''
           chunk = nil if chunk.length == 0
+          puts "after boundary splitting chunk is #{chunk.inspect}" if $DEBUG
+
+          # If something that looks like a boundary exists at the end
+          # of this chunk, refrain from returning it.
           unless chunk.nil? || found_last_boundary || input_gave_nil
             start = chunk.rindex(/\n/)
-            if !start && @first_chunk
+            if !start
               start = 0
             end
+            puts "look for boundaries starting at #{start.inspect}" if
+              $DEBUG
             if start
               while start > 0 && chunk[start - 1] == ?\n
                 start -= 1
               end
+              puts "adjusted start is #{start.inspect}" if $DEBUG
               if chunk.index(@might_be_boundary_re, start)
+                puts "found potential boundary" if $DEBUG
                 match_end = $~.end(0)
                 @caryover = chunk[start..-1]
                 chunk[start..-1] = ''
+                chunk = nil if chunk.length == 0
+                puts "carryover now #{@caryover.inspect}" if $DEBUG
+                puts "chunk now #{chunk.inspect}" if $DEBUG
                 while (@caryover.length - match_end) < 2
                   temp = @input.read(chunk_size)
                   break unless temp
                   @caryover << temp
+                  puts "padded caryover now #{@caryover.inspect}" if $DEBUG
                 end
               end
             end
           end
+
           @chunks << [ chunk, false, false ] unless chunk.nil?
-          raise if @chunks.length == 0
+
+          puts "end of loop, @chunks #{@chunks.inspect}" if $DEBUG
+
           chunk, @found_boundary, @found_last_boundary = @chunks.shift
-          if chunk.nil? || chunk.length > 0
-            @first_chunk = false
+
+          if chunk
+            puts "returning chunk #{chunk.inspect}" if $DEBUG
+            puts "  preamble #{preamble?.inspect}" if $DEBUG
+            puts "  epilogue #{epilogue?.inspect}" if $DEBUG
             return chunk
           end
         }
       end
 
-
       # Start reading the next part.  Returns true if there is a next
       # part to read, or false if we have reached the end of the file.
       def next_part
+        puts "- next part" if $DEBUG
         if @eof
+          puts "- sorry dude, we're at EOF" if $DEBUG
           false
         else
           if @found_boundary
             @in_preamble = false
             @in_epilogue = @found_last_boundary
             @found_boundary = false
+            puts "- preamble #{@in_preamble.inspect} epilogue #{@in_epilogue.inspect}" if $DEBUG
           end
+          puts "- go!" if $DEBUG
           true
         end
       end
@@ -263,14 +277,7 @@ module RMail
       private
 
       def might_be_boundary_re(boundary)
-        left = '(?:\A|\n)'
-        right = ''
-        ('--' + boundary).each_byte { |ch|
-          left << '(?:'
-          left << Regexp.quote(ch.chr)
-          right[right.length, 0] = '|\z)'
-        }
-        Regexp.new(left + right)
+        PushbackReader.maybe_contains_re("\n--" + boundary)
       end
 
     end
@@ -299,8 +306,9 @@ if $0 == __FILE__
     end
   end
 
-  File.open("../../tests/data/parser.multipart.epilogue") { |f|
-    p = RMail::Parser::MultipartReader.new(f, 'X')
+  File.open("../../tests/data/transparency/message.2") { |f|
+    p = RMail::Parser::MultipartReader.
+      new(f, '----=_NextPart_000_007F_01BDF6C7.FABAC1B0')
     parse(p, 0, 1)
   }
 end

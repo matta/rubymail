@@ -23,8 +23,11 @@ class TestRMailTransparency < TestBase
       RMail::Parser.new.parse(f)
     }
     if message1 != message2
+      puts "-" * 70
       pp message1
+      puts "-" * 70
       pp message2
+      puts "-" * 70
     end
     assert_equal(message1, message2,
                  "#{file} didn't come out like it went in.")

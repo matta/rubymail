@@ -56,7 +56,9 @@ module RMail
       @body.is_a?(Array)
     end
 
-    # Add a part to the message.
+    # Add a part to the message.  After this message is called, the
+    # #multipart? method will return true and the #body method will
+    # #return an array of parts.
     def add_part(part)
       if @body.nil?
 	@body = [part]

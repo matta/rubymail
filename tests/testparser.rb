@@ -27,7 +27,6 @@ class TestRMailParser < TestBase
 
   def test_parse
     p = RMail::Parser.new
-    assert_instance_of(RMail::Parser, p)
 
     string_msg = <<-EOF
 From matt@lickey.com  Mon Dec 24 00:00:06 2001
@@ -105,7 +104,9 @@ It DOES end with a linebreak.
     assert_nil(m.part(0).preamble)
     assert_nil(m.part(0).epilogue)
     assert_nil(m.epilogue)
+  end
 
+  def test_parser_nested_simple2
     m = data_as_file('parser.nested-simple2') { |f|
       RMail::Parser.new.parse(f)
     }
@@ -114,7 +115,9 @@ It DOES end with a linebreak.
     assert_nil(m.part(0).preamble)
     assert_nil(m.part(0).epilogue)
     assert_equal("\n", m.epilogue)
+  end
 
+  def test_parser_nested_simple3
     m = data_as_file('parser.nested-simple3') { |f|
       RMail::Parser.new.parse(f)
     }
@@ -225,12 +228,32 @@ It DOES end with a linebreak.
     end
   end
 
-  def test_parse_rfc822
+  def test_parse_badmime1
     p = RMail::Parser.new
-    m = data_as_file('parser.rfc822') do |f|
-      p.parse(f)
-    end
-    # FIXME: not finished
+    1.upto(File.stat(data_filename('parser.badmime1')).size + 10) { |size|
+      m = nil
+      data_as_file('parser.badmime1') do |f|
+        p.chunk_size = size
+        assert_no_exception("failed for chunk size #{size.to_s}") {
+          m = p.parse(f)
+        }
+      end
+      assert_equal(m, p.parse(m.to_s))
+    }
+  end
+
+  def test_parse_badmime2
+    p = RMail::Parser.new
+    1.upto(File.stat(data_filename('parser.badmime2')).size + 10) { |size|
+      m = nil
+      data_as_file('parser.badmime2') do |f|
+        p.chunk_size = size
+        assert_no_exception("failed for chunk size #{size.to_s}") {
+          m = p.parse(f)
+        }
+      end
+      assert_equal(m, p.parse(m.to_s))
+    }
   end
 
   def test_s_new

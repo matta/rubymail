@@ -1,4 +1,29 @@
-* Changes in Rubymail 0.8 (released 2002-03-18)
+* Changes in RubyMail 0.9 (released 2002-11-30)
+
+** New RMail::Mailbox.read_mbox method that can be used to conveniently
+   read raw messages out of a Unix mbox mailbox.
+
+** New RMail::Mailbox::MBoxReader class in
+   rmail/mailbox/mboxreader.rb.  This class can be used to easily read
+   messages out of a file in Unix "mbox" format.
+
+** The RMail::Parser::PushbackReader class
+   has been documented.  It has moved out of rmail/parser/multipart.rb
+   into rmail/parser/pushbackreader.rb
+
+** Various documentation fixes.  E.g. RMail::Parser.parse can take a
+   string as well as an IO object.
+
+** The RMail::Parser::PushbackReader has a setable chunk size.  This
+   is useful mostly for testing.
+
+** Fix an uncaught exception when parsing multipart MIME messages that
+   contain only a preamble and an epilogue but no body parts.
+
+** Fix a bug where RMail::Parser.multipart? would not return true if the
+   multipart message actually didn't have any parts.
+
+* Changes in RubyMail 0.8 (released 2002-03-18)
 
 ** The following has been removed from RubyMail and made part of the
    RubyFilter package:

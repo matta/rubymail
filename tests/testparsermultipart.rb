@@ -20,27 +20,24 @@ class TestRMailParserMultipart < TestBase
       parser = RMail::Parser::MultipartReader.new(f, boundary)
 
       results = []
-      chunk = nil
       loop {
-        temp = parser.read(chunk_size)
-        if temp
+        chunk = nil
+        while temp = parser.read(chunk_size)
           chunk ||= ''
           chunk << temp
-        else
-          if chunk
-            results << [ chunk, parser.preamble?, parser.epilogue? ]
-            chunk = nil
-          end
-          unless parser.next_part
-            break
-          end
+        end
+
+        results << [ chunk, parser.preamble?, parser.epilogue? ]
+
+        unless parser.next_part
+          break
         end
       }
 
       if expected_results != results
-        puts
-        p expected_results
-        p results
+        puts "\nfailure for chunks size #{chunk_size.to_s}"
+        pp expected_results
+        pp results
       end
       assert_equal(expected_results, results,
                    "\nfile #{file}\nchunk_size #{chunk_size}\n")
@@ -48,70 +45,47 @@ class TestRMailParserMultipart < TestBase
   end
 
   def for_all_chunk_sizes(file, boundary, expected_results)
-    1.upto(File.stat(data_filename(file)).size) { |size|
+    1.upto(File.stat(data_filename(file)).size + 10) { |size|
       parse_multipart(file, boundary, size, expected_results)
     }
   end
 
+
   def test_basic
-    data_as_file('parser.multipart.basic') { |f|
-      p = RMail::Parser::MultipartReader.new(f, "boundary")
+    for_all_chunk_sizes('parser.multipart.basic', 'X',
+                        [ [ "p1\np2", true, false ],
+                          [ "\npt1-1\npt1-2", false, false ],
+                          [ "\npt2-1\npt2-2", false, false ],
+                          [ "\ne1\ne2\n", false, true ] ])
+  end
 
-      assert(p.preamble?)
-      assert(!p.epilogue?)
-      assert_equal("preamble1\npreamble2", p.read)
-      assert(p.preamble?)
-      assert(!p.epilogue?)
-      assert_nil(p.read)
+  def test_basic2
+    for_all_chunk_sizes('parser.multipart.basic2', 'X',
+                        [ [ nil, true, false ],
+                          [ nil, false, false ],
+                          [ nil, false, false ],
+                          [ "\n", false, true ] ])
+  end
 
-      assert(p.next_part)
-      assert(!p.preamble?)
-      assert(!p.epilogue?)
-
-      assert_equal("part1-1\npart1-2", p.read)
-      assert(!p.preamble?)
-      assert(!p.epilogue?)
-      assert_nil(p.read)
-
-      assert(p.next_part)
-      assert(!p.preamble?)
-      assert(!p.epilogue?)
-
-      assert_equal("part2-1\npart2-2", p.read)
-      assert(!p.preamble?)
-      assert(!p.epilogue?)
-      assert_nil(p.read)
-
-      assert(p.next_part)
-      assert(!p.preamble?)
-      assert(p.epilogue?)
-
-      assert_equal("epilogue1\nepilogue2\n", p.read)
-      assert(!p.preamble?)
-      assert(p.epilogue?)
-      assert_nil(p.read)
-
-      assert(!p.next_part)
-    }
-
-    for_all_chunk_sizes('parser.multipart.basic', 'boundary',
-                        [ [ "preamble1\npreamble2", true, false ],
-                          [ "part1-1\npart1-2", false, false ],
-                          [ "part2-1\npart2-2", false, false ],
-                          [ "epilogue1\nepilogue2\n", false, true ] ])
+  def test_basic3
+    for_all_chunk_sizes('parser.multipart.basic3', 'boundary',
+                        [ [ nil, true, false ],
+                          [ "\n", false, true ] ])
   end
 
   def test_multipart_preamble
     for_all_chunk_sizes('parser.multipart.preamble', 'X',
                         [ [ "Preamble, trailing newline ->\n",
                             true, false ],
-                          [ "Epilogue, trailing newline ->\n",
+                          [ "\nEpilogue, trailing newline ->\n",
                             false, true ] ])
   end
 
   def test_multipart_epilogue
     for_all_chunk_sizes('parser.multipart.epilogue', 'X',
-                        [ [ "Part data.", false, false ] ])
+                        [ [ nil, true, false ],
+                          [ "\nPart data.", false, false ],
+                          [ "\n", false, true ] ])
   end
 
   def test_s_new

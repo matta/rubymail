@@ -104,7 +104,7 @@ module RMail
     # object.  Returns self.
     def replace(other)
       unless other.kind_of?(RMail::Header)
-        raise TypeError, "#{other.type.to_s} is not of type RMail::Header"
+        raise TypeError, "#{other.class.to_s} is not of type RMail::Header"
       end
       temp = other.dup
       @fields = temp.fields
@@ -315,7 +315,7 @@ module RMail
     # Returns true if the two objects have the same number of fields,
     # in the same order, with the same values.
     def ==(other)
-      return other.kind_of?(self.type) &&
+      return other.kind_of?(self.class) &&
         @fields == other.fields &&
         @mbox_from == other.mbox_from
     end
@@ -605,7 +605,7 @@ module RMail
       when Regexp
       else
         raise ArgumentError,
-          "name not a Regexp or String: #{name.type}:#{name.inspect}"
+          "name not a Regexp or String: #{name.class}:#{name.inspect}"
       end
       case value
       when String

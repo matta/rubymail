@@ -1,0 +1,69 @@
+#!/usr/bin/env ruby
+#--
+#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
+#
+#   Permission is granted for use, copying, modification,
+#   distribution, and distribution of modified versions of this work
+#   as long as the above copyright notice is included.
+#
+
+module RMail
+  class Parser
+
+    class PushbackReader
+      def initialize(input)
+        unless defined? input.read
+          if input.kind_of?(String)
+            input = StringReader.new(input) # FIXME: chunk size
+          end
+        end
+        @input = input
+        @pushback = nil
+        @chunk_size = 16384
+      end
+
+      def read(size = @chunk_size)
+        chunk = if @pushback
+                  temp = @pushback
+                  @pushback = nil
+                  temp
+                else
+                  @input.read(size)
+                end
+        if chunk && chunk[-$/.length, $/.length] != $/
+          line = @input.gets
+          if line
+            chunk << line
+          end
+        end
+      end
+
+      def gets(rs = $/)
+        if @pushback
+          if offset = @pushback =~ $/
+            offset += $/.length
+            retval = @pushback[0, offset]
+            @pushback[0, offset] = ""
+          else
+            retval = @pushback
+            @pushback = nil
+            if line = @input.gets
+              retval << line
+            end
+          end
+          return retval
+        else
+          return @input.gets
+        end
+      end
+
+      def pushback(string)
+        raise Error, 'You have already pushed a string back.' if @pushback
+        @pushback = string
+      end
+
+      attr_accessor :chunk_size
+    end
+
+  end
+end

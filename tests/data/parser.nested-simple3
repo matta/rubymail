@@ -1,21 +1,21 @@
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: multipart/mixed; boundary="X"
 MIME-Version: 1.0
 
 
 
---=-=-=
-Content-Type: multipart/mixed; boundary="==-=-="
+--X
+Content-Type: multipart/mixed; boundary="Y"
 
 
 
---==-=-=
+--Y
 
---==-=-=
-
-
---==-=-=--
+--Y
 
 
---=-=-=--
+--Y--
+
+
+--X--
 
 

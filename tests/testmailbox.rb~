@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+#--
+#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
+#
+#   Permission is granted for use, copying, modification,
+#   distribution, and distribution of modified versions of this work
+#   as long as the above copyright notice is included.
+#
+
+require 'tests/testbase'
+require 'rmail/mailbox'
+
+class TestRMailMailbox < TestBase
+  def test_parse_mbox_simple
+    data_as_file("mbox.simple") { |f|
+      
+    }
+  end
+end
