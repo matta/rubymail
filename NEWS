@@ -1,0 +1,64 @@
+Changes in RubyMail 0.4
+
+* The bin/rdeliver.rb script is now tested.  Got rid of
+  bin/rdeliver-wrap.rb.
+
+* Mail::LDA::DeliveryStatus renamed to Mail::LDA::DeliveryComplete.
+  Mail::LDA::DeliverFailure renamed to Mail::LDA::DeliveryPipeFailure.
+
+* Mail::Deliver.deliver_mbox now uses File::SYNC to write the message.
+
+* Mail::Header and Mail::Message no longer understand how to parse
+  messages.  Message parsing has been moved to Mail::Parser.
+  Mail::Parser uses the public API of Mail::Header and Mail::Message
+  to build up the message.
+
+* The Mail::Header API has been greatly changed.  It is now more like
+  Array and Hash.
+
+* Mail::Deliver supports delivery to qmail style Maildir mailboxes.
+  Mail::LDA#save will now deliver to a Maildir if the folder's name
+  ends in a slash.  E.g. "/home/user/Maildir/".
+
+* Mail::LDA no longer logs an abstract of the message being delivered.
+  All logging is up to the users of Mail::LDA.
+
+Changes in RubyMail 0.3
+
+* Add Mail::Header.length and Mail::Header.size methods.  Add
+  Mail::Header.match and Mail::Header.match? methods.
+
+* Move deliver.rb to bin/rdeliver-wrap.rb and main.rb to
+  bin/rdeliver.rb.  These are workable local delivery agent scripts
+  (suitable for running from .forward).
+
+* New Mail::MTA module that provides constants for exit codes.
+
+* New features for Mail::LDA.  Now Mail::LDA never calls exit, instead
+  it throws DeliveryStatus exceptions.  There is also a new
+  Mail::LDA.process method that allows you to use Mail::LDA in block
+  form.  Mail:LDA.exitcode will return the correct exit code for a
+  given DeliveryStatus exception.
+
+Changes in RubyMail 0.2
+
+* HTML API documentation is now available in the doc subdirectory.
+
+* Mail::LDA::strip_tag is now Mail::LDA::strip_field_name.
+
+* Mail::Deliver::deliver_pipe implemented.  Mail::LDA#pipe
+  implemented.
+
+* Mail::LDA#pipe and Mail::LDA#save now report success or failure with
+  DeliverySuccess and DeliveryFailure exceptions.  Mail::LDA#reject
+  and Mail::LDA#defer do not yet use the exceptions (they still call
+  exit).
+
+* Now runs clean under "ruby -w"
+
+* Now works with newer rubyunit versions.
+
+
+Local variables:
+mode: outline
+end:

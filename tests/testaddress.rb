@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 require 'tests/testbase'
 require 'mail/address'
@@ -87,7 +87,7 @@ class TestMailAddress < TestBase
       expected_results[i].each { |method, expected|
 	validate_method(address, method) { |ret|
 	  assert_equal(expected, ret,
-		       "string #{testcase[0].inspect} addr #{address.inspect} method #{method.inspect}")
+		       "\nstring #{testcase[0].inspect}\naddr #{address.inspect}\nmethod #{method.inspect}\n")
 	}
 	methods.delete(method)
       }
@@ -251,6 +251,7 @@ class TestMailAddress < TestBase
     # Note, the space is lost after the Q. because we always convert
     # word . word into "word.word" for output.  To preserve the space,
     # the guy should quote his name.
+    # FIXME: maybe fix this behavior?
     validate_case\
     ['Joe Q. Public <john.q.public@example.com>',
       [ { :name => 'Joe Q.Public',
@@ -260,7 +261,18 @@ class TestMailAddress < TestBase
 	  :domain => 'example.com',
 	  :local => 'john.q.public',
 	  :format => '"Joe Q.Public" <john.q.public@example.com>' } ] ]
-	
+
+    # FIXME: maybe expect "B.J.Major" <bjbear71@example.net>
+    validate_case\
+    ['B.J. Major <bjbear71@example.net>',
+      [ { :name => 'B.J.Major',
+	  :display_name => 'B.J.Major',
+	  :address => 'bjbear71@example.net',
+	  :comments => nil,
+	  :domain => 'example.net',
+	  :local => 'bjbear71',
+	  :format => '"B.J.Major" <bjbear71@example.net>' } ] ]
+
     validate_case\
     ['Mary Smith <@machine.tld:mary@example.net>, , jdoe@test   . example',
       [ { :name => 'Mary Smith',
@@ -297,6 +309,70 @@ class TestMailAddress < TestBase
 	  :domain => 'example.net',
 	  :local => 'mary',
 	  :format => 'Mary Smith <mary@example.net>' } ] ]
+  end
+
+  # Tests stolen from majordomoII
+  def test_majordomoII
+    validate_case\
+    ["tibbs@uh.edu (Homey (  j (\(\() t ) Tibbs)",
+      [ { :name => 'Homey ( j ((() t ) Tibbs',
+          :display_name => nil,
+          :address => 'tibbs@uh.edu',
+          :domain => 'uh.edu',
+          :local => 'tibbs',
+          :comments => [ 'Homey ( j ((() t ) Tibbs' ],
+          :format => 'tibbs@uh.edu (Homey \( j \(\(\(\) t \) Tibbs)' } ] ]
+
+    validate_case\
+    ['"tibbs@home"@hpc.uh.edu (JLT )',
+      [ { :name => 'JLT ',
+          :address => 'tibbs@home@hpc.uh.edu',
+          :display_name => nil,
+          :domain => 'hpc.uh.edu',
+          :local => 'tibbs@home',
+          :comments => [ 'JLT ' ],
+          :format => '"tibbs@home"@hpc.uh.edu (JLT )' } ] ]
+
+    validate_case\
+    ['tibbs@[129.7.3.5]',
+      [ { :name => nil,
+          :display_name => nil,
+          :domain => '[129.7.3.5]',
+          :local => 'tibbs',
+          :comments => nil,
+          :address => 'tibbs@[129.7.3.5]',
+          :format => '<tibbs@[129.7.3.5]>' } ] ]
+
+    validate_case\
+    ['A_Foriegner%across.the.pond@relay1.uu.net',
+      [ { :name => nil,
+          :display_name => nil,
+          :domain => 'relay1.uu.net',
+          :local => 'A_Foriegner%across.the.pond',
+          :comments => nil,
+          :address => 'A_Foriegner%across.the.pond@relay1.uu.net',
+          :format => 'A_Foriegner%across.the.pond@relay1.uu.net' } ] ]
+
+    validate_case\
+    ['"Jason @ Tibbitts" <tibbs@uh.edu>',
+      [ { :name => 'Jason @ Tibbitts',
+          :display_name => 'Jason @ Tibbitts',
+          :domain => 'uh.edu',
+          :local => 'tibbs',
+          :comments => nil,
+          :address => 'tibbs@uh.edu',
+          :format => '"Jason @ Tibbitts" <tibbs@uh.edu>' } ] ]
+
+    # FIXME: re enable this once parser is re-written
+#     validate_case\
+#     ['tibbs@uh.edu Jason Tibbitts',
+#       [ { :name => nil,
+#           :display_name => nil,
+#           :domain => 'uh.edu',
+#           :local => 'tibbs',
+#           :comments => nil,
+#           :address => 'tibbs@uh.edu',
+#           :format => 'tibbs@uh.edu' } ] ]
   end
 
   def test_mailtools_suite()
@@ -530,7 +606,7 @@ class TestMailAddress < TestBase
 			:local => 'delivers-news2',
 			:format => '"Amazon.com" <delivers-news2@amazon.com>'
 		      } ] ])
-      
+
     validate_case\
     ["\r\n  Amazon \r . \n com \t <    delivers-news2@amazon.com  >  \n  ",
       [ { :name => 'Amazon.com',
@@ -541,7 +617,7 @@ class TestMailAddress < TestBase
 	  :local => 'delivers-news2',
 	  :format => '"Amazon.com" <delivers-news2@amazon.com>'
 	} ] ]
-      
+
     # From postfix-users@postfix.org
     # Date: Tue, 13 Nov 2001 10:58:23 -0800
     # Subject: Apparent bug in strict_rfc821_envelopes (Snapshot-20010714)
@@ -699,7 +775,7 @@ class TestMailAddress < TestBase
 			  :local => ch,
 			  :format => ch + ' <' + ch + '@test>' } ] ])
     }
-    
+
     validate_case([atext.join('') + ' <' + atext.join('') + '@test>',
 		    [ { :name => atext.join(''),
 			:display_name => atext.join(''),
@@ -826,7 +902,7 @@ class TestMailAddress < TestBase
 	  :domain => 'example.com',
 	  :local => 'Investor Alert',
 	  :format => '"Investor Alert"@example.com' } ] ]
-    
+
     validate_case\
     ['"" <bob@example.com>',
       [ { :name => nil,
@@ -895,7 +971,7 @@ class TestMailAddress < TestBase
     end
     return false
   end
-  
+
   # if a random string failes, run it through this function to find the
   # shortest fail case
   def find_shortest_failure(arg, &block)
@@ -925,13 +1001,13 @@ class TestMailAddress < TestBase
   end
 
   def test_random_strings
-    
+
     # These random strings have generated exceptions before, so test
     # them forever.
     Mail::Address.parse("j732[S\031\022\000\fuh\003Ye<2psd\005#1L=Hw*c\0247\006\aE\fXJ\026;\026\032zAAgpCFq+\010")
     Mail::Address.parse("\016o7=\024d^\001|h<,#\026~(<oS\005 f<u\022u+4\"\020d \023h\004)\036\016\023YY0\n]W]'\025S\t\035")
     Mail::Address.parse("<")
-    
+
     0.upto(25) {
       specials = ',;\\()":@<>'
       strings = [(0..rand(255)).collect {rand(127).chr}.to_s,
@@ -994,5 +1070,5 @@ class TestMailAddress < TestBase
       Mail::Address.new(Hash.new)
     }
   end
-  
+
 end

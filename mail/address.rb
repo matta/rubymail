@@ -1,11 +1,10 @@
-#!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 # Comment for Mail module
 module Mail
@@ -38,7 +37,9 @@ module Mail
 	  @domain = addrs[0].domain
 	  @comments = addrs[0].comments
 	  @display_name = addrs[0].display_name
-	end
+        else
+          @local = @domain = @comments = @display_name = nil
+        end
       else
 	raise ArgumentError unless string.nil?
       end
@@ -53,6 +54,7 @@ module Mail
     # Assign the local portion of the mail address.  This is the
     # portion that precedes the <tt>@</tt> sign.
     def local=(l)
+      raise ArgumentError unless l.nil? || l.kind_of?(String)
       @local = l
     end
 
@@ -76,7 +78,11 @@ module Mail
     #
     # See also display_name
     def display_name=(str)
+      unless str.nil? || str.kind_of?(String)
+        raise ArgumentError, 'not a string'
+      end
       @display_name = str
+      @display_name = nil if @display_name == ''
     end
 
     # Returns a best guess at a display name for this email address.
@@ -121,7 +127,8 @@ module Mail
       @domain = if domain.nil? or domain == ''
 		  nil
 		else
-		  domain
+                  raise ArgumentError unless domain.kind_of?(String)
+		  domain.strip
 		end
     end
 
@@ -210,7 +217,7 @@ module Mail
       require "English"
 
       puts "\nparse #{string.inspect}" if $DEBUG
-      
+
       token_list = tokenize(string)
       puts "token_list #{token_list.inspect}" if $DEBUG
 
@@ -256,7 +263,7 @@ module Mail
 	if tokens.index([:special, ";"])
 	  tokens.slice!(tokens.index([:special, ";"]))
 	end
-	
+
 	# Strip comments
 	comments = []
 	tokens.delete_if { |token|
@@ -266,25 +273,25 @@ module Mail
 	  end
 	}
 	comments = nil if comments.empty?
-	
+
 	puts "comments #{comments.inspect}" if $DEBUG
 	puts "tokens #{tokens.inspect}" if $DEBUG
 
 	# Find any "<"
 	angle_index = tokens.index([:special, "<"])
-	
+
 	unless angle_index.nil?
 	  # new style name-addr = [display-name] angle-addr
 	  if angle_index > 0
-	    display_name = join_tokens(tokens[0, angle_index])
+	    display_name = join_tokens_whitespace(tokens[0, angle_index])
 	  else
 	    display_name = nil
 	  end
 	  tokens = tokens[angle_index..-1]
-	
+
 	  puts "display_name #{display_name.inspect}" if $DEBUG
 	  puts "tokens #{tokens.inspect}" if $DEBUG
-	
+
 	  # Find the ">"
 	  angle_index = tokens.index([:special, ">"]) || tokens.length - 1
 
@@ -319,8 +326,9 @@ module Mail
       puts "parsed #{results.inspect}" if $DEBUG
       return results
     end
+
     private
-    
+
     # Turn a string into an array of tokens.  Token types are :atom,
     # :qtext, :domain_literal, and :special.  Each array element
     # consists of a sub-array pair [token, string].
@@ -336,34 +344,8 @@ module Mail
 	  string = $POSTMATCH
 	when /\A\(/m # comment
 	  puts "see comment #{string.inspect}" if $DEBUG
-	  depth = 0
-	  comment = ''
-	  catch(:done) {
-	    while string =~ /\A(\(([^\(\)\\]|\\.)*)/m
-	      string = $POSTMATCH
-	      comment += $1
-	      depth += 1
-	      puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-	      while string =~ /\A(([^\(\)\\]|\\.)*\))/m
-		string = $POSTMATCH
-		comment += $1
-		depth -= 1
-		puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-		throw :done if depth == 0
-		if string =~ /\A(([^\(\)\\]|\\.)+)/
-		  string = $POSTMATCH
-		  comment += $1
-		  puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-		end
-	      end
-	    end
-	  }
-	  words.push([:comment,
-		       comment.
-		       gsub(/[\r\n\t ]+/m, ' ').
-		       sub(/\A\((.*)\)$/m, '\1').
-		       gsub(/\\(.)/, '\1')])
-	when /\A[\w!$%&'*+\/=?^_`{\}|~#-]+/m
+          string = tokenize_comment(string, words)
+	when /\A[\w!$%&\'*+\/=?^_\`{\}|~#-]+/m
 	  puts "see atom" if $DEBUG
 	  string = $POSTMATCH
 	  words.push([:atom, $MATCH])
@@ -393,22 +375,96 @@ module Mail
       words
     end
 
+    def Address.tokenize_comment(string, words)
+      depth = 0
+      comment = ''
+      catch(:done) {
+        while string =~ /\A(\(([^\(\)\\]|\\.)*)/m
+          string = $POSTMATCH
+          comment += $1
+          depth += 1
+          puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
+          while string =~ /\A(([^\(\)\\]|\\.)*\))/m
+            string = $POSTMATCH
+            comment += $1
+            depth -= 1
+            puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
+            throw :done if depth == 0
+            if string =~ /\A(([^\(\)\\]|\\.)+)/
+              string = $POSTMATCH
+              comment += $1
+              puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
+            end
+          end
+        end
+      }
+      words.push([:comment,
+                   comment.gsub(/[\r\n\t ]+/m, ' ').
+                   sub(/\A\((.*)\)$/m, '\1').
+                   gsub(/\\(.)/, '\1')])
+      string
+    end
+
+    # Delete whitespace tokens from the beginning of array
+    # and return it.
+    def Address.delete_whitespace_tokens(tokens)
+      seen_non_whitespace = false
+      tokens.delete_if { |token|
+        if seen_non_whitespace || token[0] != :whitespace
+          seen_non_whitespace = true
+          false
+        else
+          true
+        end
+      }
+    end
+
+    # Join a token list into a string without ignoring the whitespace.
+    def Address.join_tokens_whitespace(tokens)
+      joined = ''
+      unless tokens.nil?
+        tokens = delete_whitespace_tokens(tokens.dup).reverse
+        tokens = delete_whitespace_tokens(tokens).reverse
+        sep = ''
+        tokens.each { |token|
+          if token[0] == :whitespace
+            if token[1] !~ /[\r\n]/
+              sep = token[1]
+            end
+          else
+            if token[0] == :special && (token[1] == '@' || token[1] == '.')
+              joined << token[1]
+              sep = ''
+            else
+              joined << sep
+              joined << token[1]
+              sep = ' '
+            end
+          end
+        }
+      end
+      joined
+    end
+
     # Join a token list into a string.  As RFC2822 requires, the
     # special tokens . and @ will have no surrounding white space, all
     # other tokens will have a single space.
     def Address.join_tokens(tokens)
       joined = ''
-      sep = ''
       unless tokens.nil?
-	tokens.each_with_index { |token, i|
-	  if token[0] == :special && (token[1] == '@' || token[1] == '.')
-	    joined += token[1]
-	    sep = ''
-	  else
-	    joined += sep + token[1]
-	    sep = ' '
-	  end
-	}
+        sep = ''
+        tokens.each { |token|
+          unless token[0] == :whitespace
+            if token[0] == :special && (token[1] == '@' || token[1] == '.')
+              joined << token[1]
+              sep = ''
+            else
+              joined << sep
+              joined << token[1]
+              sep = ' '
+            end
+          end
+        }
       end
       joined
     end
@@ -430,6 +486,5 @@ module Mail
 	end
       end
     end
-
   end
 end

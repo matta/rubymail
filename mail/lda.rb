@@ -1,15 +1,15 @@
-#!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 require 'mail/message'
 require 'mail/deliver'
 require 'mail/mta'
+require 'mail/parser'
 
 module Mail
 
@@ -25,16 +25,19 @@ module Mail
   class LDA
     include Mail::Deliver
 
-    # A base class for delivery status exceptions.
-    class DeliveryStatus < StandardError
-      # Create a new DeliveryStatus exception with a given +message+.
+    # A DeliveryComplete exception is one that indicates that
+    # Mail::LDA's delivery process is now complete and.  The
+    # DeliveryComplete exception is never thrown itself, but its
+    # various subclasses are.
+    class DeliveryComplete < StandardError
+      # Create a new DeliveryComplete exception with a given +message+.
       def initialize(message)
 	super
       end
     end
 
     # This exception is raised when there is a problem logging.
-    class LoggingError < DeliveryStatus
+    class LoggingError < StandardError
       attr_reader :original_exception
       def initialize(message, original_exception = nil)
 	super(message)
@@ -42,50 +45,33 @@ module Mail
       end
     end
 
-    # Raised upon delivery failure of any kind.
-    class DeliveryFailure < DeliveryStatus
-
-      attr :original_exception, true
-      attr :status, true
-      
-      def initialize(message)
-	super
-	@original_exception = nil
-	@status = nil
+    # Raised when the command run by #pipe fails.
+    class DeliveryPipeFailure < DeliveryComplete
+      # This is the exit status of the pipe command.
+      attr_reader :status
+      def initialize(message, status)
+	super(message)
+	@status = status
       end
-
-      class << self
-	def command_failed(message, status)
-	  ret = DeliveryFailure.new(message)
-	  ret.status = status
-	  ret
-	end
-	def unexpected_exception(message, exception)
-	  ret = DeliveryFailure.new(message)
-	  ret.original_exception = exception
-	  ret
-	end
-      end
-
     end
 
     # Raised upon delivery success, unless the +continue+ flag of the
     # <tt>Mail::LDA</tt> delivery method was set to true.
-    class DeliverySuccess < DeliveryStatus
+    class DeliverySuccess < DeliveryComplete
       def initialize(message)
 	super
       end
     end
 
     # Raised by <tt>Mail::LDA#reject</tt>.
-    class DeliveryReject < DeliveryStatus
+    class DeliveryReject < DeliveryComplete
       def initialize(message)
 	super
       end
     end
 
     # Raised by <tt>Mail::LDA#defer</tt>.
-    class DeliveryDefer < DeliveryStatus
+    class DeliveryDefer < DeliveryComplete
       def initialize(message)
 	super
       end
@@ -110,17 +96,15 @@ module Mail
       @message = if input.is_a?(Mail::Message)
 		   input
 		 else
-		   Mail::Message.new(input)
+		   Mail::Parser.new.parse(input)
 		 end
       @logging_level = 2
-      log(2, "-----------------------------------------------")
-      log(2, "From: " + @message.header.get('from').to_s)
-      log(2, "To: " + @message.header.get('to').to_s)
-      log(2, "Subject: " + @message.header.get('subject').to_s)
     end
 
-    # Save this message to a Unix mbox folder.  +folder+ must be the
-    # file name of the mailbox.
+    # Save this message to mail folder.  +folder+ must be the file
+    # name of the mailbox.  If +folder+ ends in a slash (/) then the
+    # mailbox will be considered to be in Maildir format, otherwise it
+    # will be a Unix mbox folder.
     #
     # If +continue+ is false (the default), a
     # <tt>Mail::LDA::DeliverySuccess</tt> exception is raised upon
@@ -128,13 +112,19 @@ module Mail
     # successful delivery.
     #
     # Upon failure to deliver, the function raises a
-    # <tt>Mail::LDA::DeliveryFailure</tt> exception.
+    # <tt>Mail::LDA::DeliveryPipeFailure</tt> exception.
     #
-    # See also: <tt>Mail::Deliver.deliver_mbox.</tt>
+    # See also: <tt>Mail::Deliver.deliver_mbox</tt> and
+    # <tt>Mail::Deliver.deliver_maildir</tt>.
     def save(folder, continue = false)
       log(2, "Action: save to #{folder.inspect}")
-      deliver_mbox(folder, @message)
+      retval = if folder =~ %r{(.*[^/])/$}
+                 deliver_maildir($1, @message)
+               else
+                 deliver_mbox(folder, @message)
+               end
       raise DeliverySuccess, "saved to mbox #{folder.inspect}" unless continue
+      retval
     end
 
     # Reject this message.  Logs the +reason+ for the rejection and
@@ -159,7 +149,8 @@ module Mail
     # will raise a <tt>Mail::LDA::DeliverySuccess</tt> exception.  If
     # +continue+ is true, then a successful delivery will simply
     # return.  Regardless of +continue+, a failure to deliver to the
-    # pipe will raise a <tt>Mail::LDA::DeliveryFailure</tt> exception.
+    # pipe will raise a <tt>Mail::LDA::DeliveryPipeFailure</tt>
+    # exception.
     #
     # See also: <tt>Mail::Deliver.deliver_pipe.</tt>
     def pipe(command, continue = false)
@@ -167,7 +158,7 @@ module Mail
       deliver_pipe(command, @message)
       if $? != 0
 	m = "pipe failed for command #{command.inspect}"
-	raise DeliveryFailure.command_failed(m, $?)
+	raise DeliveryPipeFailure.new(m, $?)
       end
       unless continue
 	raise DeliverySuccess.new("pipe to #{command.inspect}")
@@ -242,9 +233,13 @@ module Mail
 
       # Takes the same input as #new, but passes the created
       # <tt>Mail::LDA</tt> to the supplied block.  The idea is that
-      # the entire delivery script is contained within the block.  No
-      # exception other than a <tt>Mail::LDA::DeliveryStatus</tt> (or
-      # one of its sub-classes) is ever raised by the function.
+      # the entire delivery script is contained within the block.
+      #
+      # This function tries to log exceptions that aren't
+      # DeliveryComplete exceptions to the lda's log.  If it can log
+      # them, it defers the delivery.  But if it can't, it re-raises
+      # the exception so the caller can more properly deal with the
+      # exception.
       #
       # Expected use:
       #
@@ -252,8 +247,11 @@ module Mail
       #    Mail::LDA.process(stdin, "my-log-file") { |lda|
       #      # ...code uses lda to deliver mail...
       #    }
-      #  rescue Mail::LDA::DeliveryStatus => exception
+      #  rescue Mail::LDA::DeliveryComplete => exception
       #    exit(Mail::LDA.exitcode(exception))
+      #  rescue Exception
+      #    ... perhaps log the exception to a hard coded file ...
+      #    exit(Mail::MTA::EX_TEMPFAIL)
       #  end
       def process(input, logfile)
 	begin
@@ -261,28 +259,31 @@ module Mail
 	  yield lda
 	  lda.defer("finished without a final delivery")
 	rescue Exception => exception
-	  if exception.class <= DeliveryStatus
+	  if exception.class <= DeliveryComplete
 	    raise exception
 	  else
-	    e = DeliveryFailure.new("uncaught exception")
-	    e.original_exception = exception
 	    begin
-	      lda.log(0, "uncaught exception: " +
-		      e.original_exception.inspect + ': ' +
-		      e.original_exception.to_s.inspect)
-	      lda.log(0, "uncaught exception backtrace:\n" +
-		      e.original_exception.backtrace.join("\n"))
-	    ensure
-	      # Don't allow exceptions in our logging attempt prevent
-	      # us from raising e.
-	      raise e
+	      lda.log(0, "uncaught exception: " + exception.inspect)
+	      lda.log(0, "uncaught exception backtrace:\n    " +
+		      exception.backtrace.join("\n    "))
+	      lda.defer("uncaught exception")
+	    rescue Exception
+	      if $!.class <= DeliveryComplete
+		# The lda.defer above will generate this, just re-raise
+		# the delivery status exception.
+		raise
+	      else
+		# Any errors logging in the uncaught exception and we
+		# just re-raise the original exception
+		raise exception
+	      end
 	    end
 	  end
 	end
       end
 
       # This function expects the +exception+ argument to be a
-      # Mail::LDA::DeliveryStatus subclass.  The function will return
+      # Mail::LDA::DeliveryComplete subclass.  The function will return
       # the appropriate exitcode that the process should exit with.
       def exitcode(exception)
 	case exception
@@ -290,17 +291,17 @@ module Mail
 	  Mail::MTA::EXITCODE_DELIVERED
 	when DeliveryReject
 	  Mail::MTA::EXITCODE_REJECT
-	when DeliveryStatus
+	when DeliveryComplete
 	  Mail::MTA::EXITCODE_DEFER
 	else
 	  raise ArgumentError,
-	    "argument is not a DeliveryStatus exception: " +
+	    "argument is not a DeliveryComplete exception: " +
 	    "#{exception.inspect} (#{exception.type})"
 	end
       end
 
     end
-    
+
   end
 end
 

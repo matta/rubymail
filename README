@@ -1,5 +1,11 @@
 -*- text -*-
 
+    Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+    Permission is granted for use, copying, modification,
+    distribution, and distribution of modified versions of this work
+    as long as the above copyright notice is included.
+
 To reach the author of RubyMail, send mail to matt@lickey.com.
 
 This is RubyMail, a lightweight mail library containing various mail
@@ -65,14 +71,3 @@ Why not use Scarlet?
     Another mail program for Ruby is Scarlet.  I keep having problems
     accessing the Scarlet web pages, but it looks like it is a mail
     LDA like procmail.  It looks like Scarlet uses TMail.
-
-License and Copyright
-
-    The copyright and license of this file is as follows.  Please
-    verify each source file in this package for its license.
- 
-    Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-
-    Permission is granted for use, copying, modification,
-    distribution, and distribution of modified versions of this work
-    as long as the above copyright notice is included.

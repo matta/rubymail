@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 require 'tests/testbase'
 require 'mail/deliver'
@@ -13,6 +13,8 @@ require 'tempfile'
 
 class TestMailDeliver < TestBase
   include Mail::Deliver
+
+  FROM_RE = /^From \S+@\S+  (Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}$/
 
   # Validates an mbox style mailbox and returns the number of messages
   # it contains.
@@ -24,11 +26,11 @@ class TestMailDeliver < TestBase
     prevline = nil
     sentinel_match = true
     IO.foreach(filename) { |line|
-      assert(line[-1] == ?\n, 
+      assert(line[-1] == ?\n,
 	     "Line #{line_count} #{line.inspect} does not end in a newline")
-      
+
       if (line_count == 1)
-	assert_match(line, /^From /, 'first line in file is not "From "')
+	assert_match(line, FROM_RE, 'invalid From_')
       end
 
       if ((line_count == 1 || prevline == "\n") && line =~ /^From /)
@@ -100,7 +102,7 @@ class TestMailDeliver < TestBase
     deliver_mbox(mailbox, string_message)
     assert(test(?f, mailbox))
     assert_equal(string_message.length + 2, test(?s, mailbox))
-    assert_equal(1, validate_mbox(mailbox, /^foo$/))
+    assert_equal(1, validate_mbox(mailbox, /^From baz@bango/))
   end
 
   def test_deliver_mbox_string_without_from()
@@ -118,7 +120,7 @@ class TestMailDeliver < TestBase
     mailbox = File.join(scratch_dir, "mbox.array_with_from")
     assert(!test(?e, mailbox))
     array_message = [
-      'From baz@bango  Fro Nov  9 23:00:43 2001',
+      'From baz@bango  Fri Nov  9 23:00:43 2001',
       'X-foo: foo',
       '',
       'foo' ]
@@ -137,13 +139,13 @@ class TestMailDeliver < TestBase
       'foo' ]
     deliver_mbox(mailbox, array_message)
     assert(test(?f, mailbox))
-    assert_equal("From baz@bar  Fri Nov  9 23:00:43 2001\n".length + 
+    assert_equal("From baz@bar  Fri Nov  9 23:00:43 2001\n".length +
 		 array_message.join("\n").length + 2, test(?s, mailbox))
     assert_equal(1, validate_mbox(mailbox, /^foo$/))
   end
-  
+
   def test_deliver_mbox_complex()
-    mailbox = File.join(scratch_dir, "mbox.complex")
+    mailbox = scratch_filename("mbox.complex")
     obj = Object.new
 
     def obj.each
@@ -162,7 +164,7 @@ class TestMailDeliver < TestBase
     deliver_mbox(mailbox, obj)
     deliver_mbox(mailbox, obj)
     assert(test(?f, mailbox))
-    assert_equal(296, test(?s, mailbox))
+    assert_equal(282, test(?s, mailbox))
     assert_equal(2, validate_mbox(mailbox, /^complex body text again$/))
 
     File.open(mailbox) {|f|
@@ -240,5 +242,206 @@ And it even ends with one.
     deliver_pipe(command, long_message)
     assert_equal(7 << 8, $?)
   end
-  
+
+  def test_deliver_maildir
+    require 'socket'
+
+    dir = scratch_filename('Maildir')
+    delivered_to = deliver_maildir(dir, 'message')
+    assert(FileTest::directory?(dir))
+    assert(FileTest::directory?(File.join(dir, 'tmp')))
+    assert(FileTest::directory?(File.join(dir, 'new')))
+    assert(FileTest::directory?(File.join(dir, 'cur')))
+
+    #
+    # Make sure the file is delivered to the right filename
+    #
+    assert_kind_of(String, delivered_to)
+    newdir_re = Regexp.escape(File.join(dir, 'new'))
+    hostname_re = Regexp.escape(Socket::gethostname)
+    pid_re = Regexp.escape(Process::pid.to_s)
+    assert_match(/#{newdir_re}\/\d+\.#{pid_re}_0\.#{hostname_re}$/,
+                 delivered_to)
+    /#{newdir_re}\/(\d+)/ =~ delivered_to
+    assert_operator(10, '>', Time.now.to_i - Integer($1).to_i)
+    assert_operator(0, '<=', Time.now.to_i - Integer($1).to_i)
+
+    #
+    # Make sure that file contains the message
+    #
+    assert(FileTest::file?(delivered_to))
+    lines = IO::readlines(delivered_to)
+    assert_equal("message\n", lines[0])
+    assert_nil(lines[1])
+
+    #
+    # Make sure the tmp name is gone
+    #
+    assert(!FileTest::file?(File.join(dir, 'tmp',
+                                      File::basename(delivered_to))))
+  end
+
+  def test_deliver_maildir_twice
+    dir = scratch_filename('Maildir')
+    first = deliver_maildir(dir, 'message_first')
+    second = deliver_maildir(dir, 'message_second')
+
+    #
+    # Validate that the filenames look sane
+    #
+    assert(!(first == second))
+    assert_kind_of(String, first)
+    assert_kind_of(String, second)
+    File.basename(first) =~ /^\d+\.\d+_(\d+)/
+    first_seq = $1
+    File.basename(second) =~ /^\d+\.\d+_(\d+)/
+    second_seq = $1
+    assert(Integer(first_seq) + 1 == Integer(second_seq))
+
+    #
+    # Validate that the messages look sane
+    #
+    assert_equal("message_first\n", IO::readlines(first)[0])
+    assert_nil(IO::readlines(first)[1])
+    assert_equal("message_second\n", IO::readlines(second)[0])
+    assert_nil(IO::readlines(second)[1])
+  end
+
+  def test_deliver_maildir_with_mbox_from
+    message = <<EOF
+From bob@example
+content
+EOF
+    delivered_to = deliver_maildir(scratch_filename('Maildir'),
+                                   message)
+    assert_equal("content\n", IO::readlines(delivered_to)[0])
+    assert_nil(IO::readlines(delivered_to)[1])
+  end
+
+  def test_deliver_maildir_one_tmp_file_conflict
+    dir = scratch_filename('Maildir')
+
+    # First, figure out what sequence number we're at
+    sequence = maildir_sequence_from_file(deliver_maildir(dir,
+                                                          'probe message'))
+    sequence = sequence.succ
+
+    # Next create the next possible tmp file
+    conflicting = maildir_fill_tmp_files(dir, sequence, 1)
+
+    # Then deliver
+    start_time = Time.now
+    delivered_to = deliver_maildir(dir, 'the message')
+    end_time = Time.now
+
+    # Make sure the conflicting temp files didn't get clobbered
+    maildir_verify_conflicting_tmp_files(conflicting)
+
+    # Make sure we didn't sleep too long
+    assert_operator(1.5, '<', end_time - start_time,
+                    "Did not sleep long enough.")
+    assert_operator(4.0, '>', end_time - start_time,
+                    "Slept too long.")
+  end
+
+  def test_deliver_maildir_too_many_tmp_file_conflicts
+    # Tests that if all possible tmp files are present, the function
+    # throws an exception.
+    dir = scratch_filename('Maildir')
+
+    # First, figure out what sequence number we're at
+    sequence = maildir_sequence_from_file(deliver_maildir(dir,
+                                                          'probe message'))
+    sequence = sequence.succ
+
+    # Next create the next possible tmp file.  The delivery won't take
+    # more than 10 seconds, so create 11 seconds worth of tmp files.
+    conflicting = maildir_fill_tmp_files(dir, sequence, 11)
+
+    # Then deliver
+    start_time = Time.now
+    assert_exception(Errno::EEXIST) {
+      deliver_maildir(dir, 'the message')
+    }
+    end_time = Time.now
+
+    # Make sure the conflicting temp files didn't get clobbered
+    maildir_verify_conflicting_tmp_files(conflicting)
+
+    # Make sure we didn't sleep too long
+    assert_operator(7.5, '<', end_time - start_time,
+                    "Did not sleep long enough.")
+    assert_operator(10, '>', end_time - start_time, "Slept too long.")
+  end
+
+  def test_deliver_maildir_is_file
+    dir = scratch_filename('Maildir')
+    File.open(dir, "w") { |f| f.puts "this is a file, not a directory" }
+    assert(FileTest::file?(dir))
+    e = assert_exception(Errno::EEXIST) {
+      deliver_maildir(dir, 'message')
+    }
+    assert_match(/File exists.*#{Regexp::escape(dir)}/, e.message)
+  end
+
+  def maildir_fill_tmp_files(dir, sequence, seconds_count)
+    now = Time::now.to_i
+    conflicting = []
+    now.upto(now + seconds_count) { |time|
+      name = sprintf("%d.%d_%d.%s", time, Process::pid, sequence,
+                     Socket::gethostname)
+      tmp_name = File.join(dir, 'tmp', name)
+      conflicting << tmp_name
+      File.open(tmp_name, 'w') { |f| f.puts "conflicting temp file" }
+    }
+    conflicting
+  end
+
+  def maildir_verify_conflicting_tmp_files(conflicting)
+    conflicting.each { |conflicting_tmp|
+      assert(FileTest::file?(conflicting_tmp),
+             "Conflicting temp file got deleted.")
+      assert_equal("conflicting temp file\n",
+                   IO::readlines(conflicting_tmp)[0],
+                   "Conflicting temp file got modified.")
+      assert_nil(IO::readlines(conflicting_tmp)[1],
+                 "Conflicting temp file was appended to.")
+    }
+  end
+
+  def maildir_sequence_from_file(file)
+    # First, figure out what sequence number we're at
+    if File.basename(file) =~ /^\d+\.\d+_(\d+)/
+      $1
+    else
+      raise "#{file} isn't valid"
+    end
+  end
+
+  def helper_for_new_cur_tmp_is_file(subdir)
+    dir = scratch_filename('Maildir')
+    Dir.mkdir(dir)
+    file = File.join(dir, subdir)
+    File.open(file, 'w') { |f|
+      f.puts "this is a file, not a directory"
+    }
+    assert(FileTest::file?(file))
+    e = assert_exception(Errno::EEXIST) {
+      deliver_maildir(dir, 'message')
+    }
+    assert_match(/File exists.*#{Regexp::escape(file)}/, e.message)
+  end
+
+  def test_deliver_maildir_new_is_file
+    helper_for_new_cur_tmp_is_file('new')
+  end
+
+  def test_deliver_maildir_cur_is_file
+    helper_for_new_cur_tmp_is_file('cur')
+  end
+
+  def test_deliver_maildir_tmp_is_file
+    helper_for_new_cur_tmp_is_file('tmp')
+  end
+
 end

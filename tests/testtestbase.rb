@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 # Test the TestBase class itself
 
@@ -49,9 +49,9 @@ class TestTestBase < TestBase
     assert_equal(false, file_contains(scratch, "contains CCC"))
   end
 
-  def test_ruby_bin
-    assert_not_nil(ruby_bin)
-    assert_kind_of(String, ruby_bin)
+  def test_ruby_program
+    assert_not_nil(ruby_program)
+    assert_kind_of(String, ruby_program)
   end
 
   def verify_scratch_dir_name(dir)
@@ -69,6 +69,11 @@ class TestTestBase < TestBase
     assert_kind_of(String, name)
     verify_scratch_dir_name(File.dirname(name))
     assert_equal("foobar", File.basename(name))
+
+    name = scratch_filename("foobar")
+    assert_kind_of(String, name)
+    verify_scratch_dir_name(File.dirname(name))
+    assert_equal("foobar.1", File.basename(name))
   end
 
   def test_string_as_file

@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (c) 2001 Matt Armstrong.  All rights reserved.
-#
-#   Permission is granted for use, copying, modification,
-#   distribution, and distribution of modified versions of this work
-#   as long as the above copyright notice is included.
-#
+=begin
+   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+
+   Permission is granted for use, copying, modification, distribution,
+   and distribution of modified versions of this work as long as the
+   above copyright notice is included.
+=end
 
 # Base for all the test cases, providing a default setup and teardown
 
@@ -18,7 +18,6 @@ class TestBase < RUNIT::TestCase
   include Config
 
   attr_reader :scratch_dir
-  attr_reader :ruby_bin
 
   # NoMethodError was introduced in ruby 1.7
   NO_METHOD_ERROR = if RUBY_VERSION >= "1.7"
@@ -83,20 +82,29 @@ class TestBase < RUNIT::TestCase
   end
 
   def setup
-    @scratch_dir = "_scratch_" + name
-    @ruby_bin = File.join(CONFIG['bindir'], 
-			  CONFIG['ruby_install_name'])
+    @scratch_dir = File.join(Dir.getwd, "_scratch_" + name)
+    @scratch_hash = {}
 
     cleandir(@scratch_dir)
     Dir.rmdir(@scratch_dir) if FileTest.directory?(@scratch_dir)
     Dir.mkdir(@scratch_dir) unless FileTest.directory?(@scratch_dir)
   end
 
+  def ruby_program
+    File.join(CONFIG['bindir'], CONFIG['ruby_install_name'])
+  end
+
   def scratch_filename(name)
-    scratch = File.join(@scratch_dir, name)
-    assert_equal(false, test(?e, scratch),
-		 "scratch file #{scratch} already exists")
-    scratch
+    if @scratch_hash.key?(name)
+      temp = @scratch_hash[name]
+      temp = temp.succ
+      @scratch_hash[name] = name = temp
+    else
+      temp = name.dup
+      temp << '.0' unless temp =~ /\.\d+$/
+      @scratch_hash[name] = temp
+    end
+    File.join(@scratch_dir, name)
   end
 
   def teardown
