@@ -1,3 +1,49 @@
+* Changes in RubyMail 0.7 (released 2002-02-26)
+
+** A new chunked input scheme that makes parsing huge messages about 7
+   times faster in ruby 1.7 and 50 times faster in ruby 1.6.
+
+   When parsing a huge message that has a 2 megabyte attachment,
+   RubyMail running under ruby 1.7 is now faster than any email
+   package for ruby, perl or python.
+
+   I wrote a benchmark that reads a 2 megabyte email from a file and
+   writes it out again, doing this 100 times.  The results are:
+
+    ruby 1.7.2 w/rubymail (100 times)
+         5.96s user  7.98s system 13.94s total
+    ruby 1.6.6 w/rubymail (100 times)
+        76.91s user  8.62s system 85.53s total
+    ruby 1.7.2 w/tmail 0.10.1 (100 times)
+         9.85s user 24.21s system 34.06s total
+    ruby 1.6.6 w/tmail 0.10.0 (100 times)
+        201.89s user 15.75s system 217.64s total
+    python 2.2 w/email (100 times)
+        76.73 user 15.16s system 91.89s total
+    perl 5.006001 w/mimetools 5.411  (parsing on disk) (100 times)
+        190.11s user 25.25s system 215.36s total
+    perl 5.006001 w/mimetools 5.411  (parsing in memory) (100 times)
+        962.69s user  6.77s system 969.46s total
+
+  This change also paves the way for streaming large messages
+  to disk when they start to get huge, so RAM isn't needlessly
+  used up.
+
+** Delivery to mbox files improved.
+
+    - won't sleep forever waiting for the mailbox lock (flock)
+    - won't delivery to files that don't look like an mbox
+      (e.g. it is not a file, not in the right format).
+    - delivering to '/dev/null' is now a simple nop.
+
+** Use the new File#fsync method when available in all of the mail
+   delivery functions.
+
+** Add bin/rsendmail.rb as another example of how I'm using RubyMail.
+
+** A new Mail::AddressTagger class, included for fun.  Requires the
+   hmac-sha1 class (available in the ruby-hmac package on RAA).
+
 * Changes in RubyMail 0.6 (released 2002-02-15)
 
 ** Multipart MIME support.

@@ -114,13 +114,11 @@ module Mail
     # Call the supplied block for each line of the message.  Each line
     # will contain a trailing newline (<tt>\n</tt>).
     def each()
-      @header.to_s.each("\n") {|line|
-	yield line
+      # FIXME: this is incredibly inefficient!  The only users of this
+      # is Mail::Deliver -- get them to use a Mail::Serialize object.
+      to_s.each("\n") { |line|
+        yield line
       }
-      yield "\n"
-      @body.each_line {|line|
-	yield line
-      } unless @body.nil?
     end
 
   end

@@ -55,7 +55,7 @@ module Mail
         end
       else
         @output << message.header.to_s + "\n"
-        unless message.body.nil?
+        unless message.body.nil? || message.body.length == 0
           @output << message.body
           @output << "\n" if depth > 0 || message.body[-1] != ?\n
         end

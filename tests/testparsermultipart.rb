@@ -12,83 +12,112 @@ require 'mail/parser/multipart'
 
 class TestMailParserMultipart < TestBase
 
-  def test_all
-    data_as_file('parser.multipart.simple') { |f|
-      p = Mail::Parser::Multipart.new(f, "X")
+  # FIXME: TODO
+  # - test \n -vs- \r\n -vs \r end of line characters
 
-      assert(p.preamble?); assert(!p.epilogue?)
-      assert_equal("1 Preamble1\n", p.gets)
-      assert(p.preamble?); assert(!p.epilogue?)
-      assert_equal("2 Premable2\n", p.gets)
-      assert(p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets);
-      assert(p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(p.preamble?); assert(!p.epilogue?)
+  def parse_multipart(file, boundary, chunk_size, expected_results)
+    data_as_file(file) { |f|
+      parser = Mail::Parser::MultipartReader.new(f, boundary)
 
-      assert(p.next_part)
-      assert(!p.preamble?); assert(!p.epilogue?)
+      results = []
+      chunk = nil
+      loop {
+        temp = parser.read(chunk_size)
+        if temp
+          chunk ||= ''
+          chunk << temp
+        else
+          if chunk
+            results << [ chunk, parser.preamble?, parser.epilogue? ]
+            chunk = nil
+          end
+          unless parser.next_part
+            break
+          end
+        end
+      }
 
-      assert_equal("3 Part1 first\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("4 Part1 second\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-
-      assert(p.next_part)
-      assert(!p.preamble?); assert(!p.epilogue?)
-
-      assert_equal("5 Part2 first\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("6 Part2 second\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("--Y\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("7 This is in Y\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("--Y--\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("8 Y epilogue.\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-
-      assert(p.next_part)
-      assert(!p.preamble?); assert(!p.epilogue?)
-
-      assert_equal("9 Part3 first\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_equal("10 Part3 second\n", p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(!p.epilogue?)
-
-      assert(p.next_part)
-      assert(!p.preamble?); assert(p.epilogue?)
-
-      assert_equal("11 This is the final epilogue.\n", p.gets)
-      assert(!p.preamble?); assert(p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(p.epilogue?)
-      assert_nil(p.gets)
-      assert(!p.preamble?); assert(p.epilogue?)
-
-      assert(!p.next_part)
-      assert(!p.preamble?); assert(p.epilogue?)
+      if expected_results != results
+        puts
+        p expected_results
+        p results
+      end
+      assert_equal(expected_results, results,
+                   "\nfile #{file}\nchunk_size #{chunk_size}\n")
     }
   end
 
+  def for_all_chunk_sizes(file, boundary, expected_results)
+    1.upto(File.stat(data_filename(file)).size) { |size|
+      parse_multipart(file, boundary, size, expected_results)
+    }
+  end
+
+  def test_basic
+    data_as_file('parser.multipart.basic') { |f|
+      p = Mail::Parser::MultipartReader.new(f, "boundary")
+
+      assert(p.preamble?)
+      assert(!p.epilogue?)
+      assert_equal("preamble1\npreamble2", p.read)
+      assert(p.preamble?)
+      assert(!p.epilogue?)
+      assert_nil(p.read)
+
+      assert(p.next_part)
+      assert(!p.preamble?)
+      assert(!p.epilogue?)
+
+      assert_equal("part1-1\npart1-2", p.read)
+      assert(!p.preamble?)
+      assert(!p.epilogue?)
+      assert_nil(p.read)
+
+      assert(p.next_part)
+      assert(!p.preamble?)
+      assert(!p.epilogue?)
+
+      assert_equal("part2-1\npart2-2", p.read)
+      assert(!p.preamble?)
+      assert(!p.epilogue?)
+      assert_nil(p.read)
+
+      assert(p.next_part)
+      assert(!p.preamble?)
+      assert(p.epilogue?)
+
+      assert_equal("epilogue1\nepilogue2\n", p.read)
+      assert(!p.preamble?)
+      assert(p.epilogue?)
+      assert_nil(p.read)
+
+      assert(!p.next_part)
+    }
+
+    for_all_chunk_sizes('parser.multipart.basic', 'boundary',
+                        [ [ "preamble1\npreamble2", true, false ],
+                          [ "part1-1\npart1-2", false, false ],
+                          [ "part2-1\npart2-2", false, false ],
+                          [ "epilogue1\nepilogue2\n", false, true ] ])
+  end
+
+  def test_multipart_preamble
+    for_all_chunk_sizes('parser.multipart.preamble', 'X',
+                        [ [ "Preamble, trailing newline ->\n",
+                            true, false ],
+                          [ "Epilogue, trailing newline ->\n",
+                            false, true ] ])
+  end
+
+  def test_multipart_epilogue
+    for_all_chunk_sizes('parser.multipart.epilogue', 'X',
+                        [ [ "Part data.", false, false ] ])
+  end
+
   def test_s_new
-    data_as_file('parser.multipart.simple') { |f|
-      p = Mail::Parser::Multipart.new(f, "foo")
-      assert_kind_of(Mail::Parser::Multipart, p)
+    data_as_file('parser.multipart.basic') { |f|
+      p = Mail::Parser::MultipartReader.new(f, "foo")
+      assert_kind_of(Mail::Parser::MultipartReader, p)
     }
   end
 

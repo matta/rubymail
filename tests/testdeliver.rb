@@ -12,7 +12,6 @@ require 'mail/deliver'
 require 'tempfile'
 
 class TestMailDeliver < TestBase
-  include Mail::Deliver
 
   FROM_RE = /^From \S+@\S+  (Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}$/
 
@@ -71,12 +70,64 @@ class TestMailDeliver < TestBase
     return mailcount
   end
 
+  def test_deliver_mbox_atime_preserve()
+    mailbox = File.join(scratch_dir, "mbox.atime_preserve")
+    File.open(mailbox, 'w') {}
+    File.utime(0, File.stat(mailbox).mtime, mailbox)
+    assert_equal(0, File.stat(mailbox).atime)
+    Mail::Deliver.deliver_mbox(mailbox, "message")
+    assert_equal(0, File.stat(mailbox).atime,
+                 "failed to preserve access time on mailbox")
+  end
+
+  def test_deliver_mbox_verify_is_mbox()
+    [ "\n",
+      "\n\n",
+      "From ",
+      "From foo@bar\nyo",
+      "From foo@bar\nblah\n" ].each { |contents|
+      mailbox = File.join(scratch_dir, "mbox.not_an_mbox")
+      File.open(mailbox, 'w') { |f|
+        f.write(contents)
+      }
+      e = assert_exception(Mail::Deliver::NotAMailbox) {
+        Mail::Deliver.deliver_mbox(mailbox, "message")
+      }
+      assert_match(/file is not in mbox format/, e.message)
+    }
+
+    [ "",
+      "From \n\n",
+      "From foo@bar\nblah\n\n" ].each { |contents|
+      mailbox = File.join(scratch_dir, "mbox.valid_mbox")
+      File.open(mailbox, 'w') { |f|
+        f.write(contents)
+      }
+      assert_no_exception {
+        Mail::Deliver.deliver_mbox(mailbox, "message")
+      }
+    }
+
+    string_as_file("") { |file|
+      symlink = scratch_filename("symlink")
+      File::symlink(file.path, symlink)
+      assert(File::symlink?(symlink))
+      assert_exception(Mail::Deliver::NotAFile) {
+        Mail::Deliver.deliver_mbox(symlink, "message")
+      }
+    }
+  end
+
+  def test_deliver_mbox_dev_null()
+    Mail::Deliver.deliver_mbox('/dev/null', "message")
+  end
+
   def test_deliver_mbox_no_each_method()
     mailbox = File.join(scratch_dir, "mbox.no_each_method")
 
     assert(!test(?e, mailbox))
     e = assert_exception(NO_METHOD_ERROR) {
-      deliver_mbox(mailbox, nil)
+      Mail::Deliver.deliver_mbox(mailbox, nil)
     }
     assert_not_nil(e)
     assert_match(/undefined method `each'/, e.message)
@@ -85,7 +136,7 @@ class TestMailDeliver < TestBase
     assert(test(?z, mailbox))
     assert_equal(0, validate_mbox(mailbox, nil))
     e = assert_exception(NO_METHOD_ERROR) {
-      deliver_mbox(mailbox, Object.new)
+      Mail::Deliver.deliver_mbox(mailbox, Object.new)
     }
     assert_not_nil(e)
     assert(test(?f, mailbox))
@@ -99,7 +150,7 @@ class TestMailDeliver < TestBase
     assert(!test(?e, mailbox))
     string_message =
       "From baz@bango  Fri Nov  9 23:00:43 2001\nX-foo: foo\n\nfoo"
-    deliver_mbox(mailbox, string_message)
+    Mail::Deliver.deliver_mbox(mailbox, string_message)
     assert(test(?f, mailbox))
     assert_equal(string_message.length + 2, test(?s, mailbox))
     assert_equal(1, validate_mbox(mailbox, /^From baz@bango/))
@@ -109,7 +160,7 @@ class TestMailDeliver < TestBase
     mailbox = File.join(scratch_dir, "mbox.string_without_from")
     assert(!test(?e, mailbox))
     string_message = "X-foo: foo\n\nfoo"
-    deliver_mbox(mailbox, string_message)
+    Mail::Deliver.deliver_mbox(mailbox, string_message)
     assert(test(?f, mailbox))
     assert_equal("From foo@bar  Fri Nov  9 23:00:43 2001\n".length +
 		 string_message.length + 2, test(?s, mailbox))
@@ -124,7 +175,7 @@ class TestMailDeliver < TestBase
       'X-foo: foo',
       '',
       'foo' ]
-    deliver_mbox(mailbox, array_message)
+    Mail::Deliver.deliver_mbox(mailbox, array_message)
     assert(test(?f, mailbox))
     assert_equal(array_message.join("\n").length + 2, test(?s, mailbox))
     assert_equal(1, validate_mbox(mailbox, /^foo$/))
@@ -137,7 +188,7 @@ class TestMailDeliver < TestBase
       'X-foo: foo',
       '',
       'foo' ]
-    deliver_mbox(mailbox, array_message)
+    Mail::Deliver.deliver_mbox(mailbox, array_message)
     assert(test(?f, mailbox))
     assert_equal("From baz@bar  Fri Nov  9 23:00:43 2001\n".length +
 		 array_message.join("\n").length + 2, test(?s, mailbox))
@@ -161,8 +212,8 @@ class TestMailDeliver < TestBase
     end
 
     assert(!test(?e, mailbox))
-    deliver_mbox(mailbox, obj)
-    deliver_mbox(mailbox, obj)
+    Mail::Deliver.deliver_mbox(mailbox, obj)
+    Mail::Deliver.deliver_mbox(mailbox, obj)
     assert(test(?f, mailbox))
     assert_equal(282, test(?s, mailbox))
     assert_equal(2, validate_mbox(mailbox, /^complex body text again$/))
@@ -183,13 +234,52 @@ class TestMailDeliver < TestBase
     }
   end
 
+  def test_deliver_mbox_flock_timeout()
+    mailbox = scratch_filename("mbox")
+    File.open(mailbox, 'w') { |file|
+      file.flock(File::LOCK_EX)
+
+      e = assert_exception(Mail::Deliver::LockingError) {
+        Mail::Deliver.deliver_mbox(mailbox, "message")
+      }
+      assert_equal("Timeout locking mailbox.", e.message)
+    }
+  end
+
+  def test_deliver_mbox_random_exception()
+    mailbox = scratch_filename("mbox")
+
+    obj = Object.new
+    def obj.each
+      10.times { |i|
+        yield "Header#{i}: foo bar baz"
+      }
+      raise "No more already!"
+    end
+
+    e = assert_exception(RuntimeError) {
+      Mail::Deliver.deliver_mbox(mailbox, obj)
+    }
+    assert_equal("No more already!", e.message)
+    assert_equal(0, File::stat(mailbox).size)
+
+    Mail::Deliver.deliver_mbox(mailbox, "this\nis\na\nmessage!")
+    size = File::stat(mailbox).size
+
+    e = assert_exception(RuntimeError) {
+      Mail::Deliver.deliver_mbox(mailbox, obj)
+    }
+    assert_equal("No more already!", e.message)
+    assert_equal(size, File::stat(mailbox).size)
+  end
+
   def test_deliver_pipe_no_each_method()
     output = File.join(scratch_dir, "pipe.no_each_method")
     command = "/bin/cat > #{output}"
 
     assert_equal(false, test(?e, output))
     e = assert_exception(NO_METHOD_ERROR) {
-      deliver_pipe(command, nil)
+      Mail::Deliver.deliver_pipe(command, nil)
     }
     assert_not_nil(e)
     assert_match(/undefined method `each'/, e.message)
@@ -197,7 +287,7 @@ class TestMailDeliver < TestBase
     assert_equal(true, test(?z, output))
 
     e = assert_exception(NO_METHOD_ERROR) {
-      deliver_pipe(command, Object.new)
+      Mail::Deliver.deliver_pipe(command, Object.new)
     }
     assert_not_nil(e)
     assert_match(/undefined method `each'/, e.message)
@@ -211,7 +301,7 @@ class TestMailDeliver < TestBase
 
     message1 = "This is message one."
     assert_equal(false, test(?e, output))
-    deliver_pipe(command, message1)
+    Mail::Deliver.deliver_pipe(command, message1)
     got = File.open(output).readlines().join('')
     assert_equal(message1 + "\n", got)
 
@@ -219,19 +309,19 @@ class TestMailDeliver < TestBase
 It has some newlines in it.
 And it even ends with one.
 }
-    deliver_pipe(command, message2)
+    Mail::Deliver.deliver_pipe(command, message2)
     got = File.open(output).readlines().join('')
     assert_equal(message2, got)
 
     message3 = [ "Line 1", "Line 2", "", "Line 3" ]
-    deliver_pipe(command, message3)
+    Mail::Deliver.deliver_pipe(command, message3)
     got = File.open(output).readlines().join('')
     assert_equal(message3.join("\n") + "\n", got)
   end
 
   def test_deliver_pipe_failed()
     command = "/bin/sh -c 'exit 7'"
-    deliver_pipe(command, "irrelevant message")
+    Mail::Deliver.deliver_pipe(command, "irrelevant message")
     assert_equal(7 << 8, $?)
 
     # now attempt to generate an EPIPE pipe error
@@ -239,7 +329,7 @@ And it even ends with one.
     0.upto(5000) {
       long_message.push("This is a line of text")
     }
-    deliver_pipe(command, long_message)
+    Mail::Deliver.deliver_pipe(command, long_message)
     assert_equal(7 << 8, $?)
   end
 
@@ -247,7 +337,7 @@ And it even ends with one.
     require 'socket'
 
     dir = scratch_filename('Maildir')
-    delivered_to = deliver_maildir(dir, 'message')
+    delivered_to = Mail::Deliver.deliver_maildir(dir, 'message')
     assert(FileTest::directory?(dir))
     assert(FileTest::directory?(File.join(dir, 'tmp')))
     assert(FileTest::directory?(File.join(dir, 'new')))
@@ -283,8 +373,8 @@ And it even ends with one.
 
   def test_deliver_maildir_twice
     dir = scratch_filename('Maildir')
-    first = deliver_maildir(dir, 'message_first')
-    second = deliver_maildir(dir, 'message_second')
+    first = Mail::Deliver.deliver_maildir(dir, 'message_first')
+    second = Mail::Deliver.deliver_maildir(dir, 'message_second')
 
     #
     # Validate that the filenames look sane
@@ -312,8 +402,8 @@ And it even ends with one.
 From bob@example
 content
 EOF
-    delivered_to = deliver_maildir(scratch_filename('Maildir'),
-                                   message)
+    delivered_to = Mail::Deliver.deliver_maildir(scratch_filename('Maildir'),
+                                                 message)
     assert_equal("content\n", IO::readlines(delivered_to)[0])
     assert_nil(IO::readlines(delivered_to)[1])
   end
@@ -322,8 +412,8 @@ EOF
     dir = scratch_filename('Maildir')
 
     # First, figure out what sequence number we're at
-    sequence = maildir_sequence_from_file(deliver_maildir(dir,
-                                                          'probe message'))
+    sequence =
+      maildir_sequence_from_file(Mail::Deliver.deliver_maildir(dir, 'foo'))
     sequence = sequence.succ
 
     # Next create the next possible tmp file
@@ -331,7 +421,7 @@ EOF
 
     # Then deliver
     start_time = Time.now
-    delivered_to = deliver_maildir(dir, 'the message')
+    delivered_to = Mail::Deliver.deliver_maildir(dir, 'the message')
     end_time = Time.now
 
     # Make sure the conflicting temp files didn't get clobbered
@@ -350,8 +440,8 @@ EOF
     dir = scratch_filename('Maildir')
 
     # First, figure out what sequence number we're at
-    sequence = maildir_sequence_from_file(deliver_maildir(dir,
-                                                          'probe message'))
+    sequence =
+      maildir_sequence_from_file(Mail::Deliver.deliver_maildir(dir, 'foo'))
     sequence = sequence.succ
 
     # Next create the next possible tmp file.  The delivery won't take
@@ -361,7 +451,7 @@ EOF
     # Then deliver
     start_time = Time.now
     assert_exception(Errno::EEXIST) {
-      deliver_maildir(dir, 'the message')
+      Mail::Deliver.deliver_maildir(dir, 'the message')
     }
     end_time = Time.now
 
@@ -379,7 +469,7 @@ EOF
     File.open(dir, "w") { |f| f.puts "this is a file, not a directory" }
     assert(FileTest::file?(dir))
     e = assert_exception(Errno::EEXIST) {
-      deliver_maildir(dir, 'message')
+      Mail::Deliver.deliver_maildir(dir, 'message')
     }
     assert_match(/File exists.*#{Regexp::escape(dir)}/, e.message)
   end
@@ -427,7 +517,7 @@ EOF
     }
     assert(FileTest::file?(file))
     e = assert_exception(Errno::EEXIST) {
-      deliver_maildir(dir, 'message')
+      Mail::Deliver.deliver_maildir(dir, 'message')
     }
     assert_match(/File exists.*#{Regexp::escape(file)}/, e.message)
   end

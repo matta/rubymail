@@ -76,18 +76,16 @@ class TestBase < RUNIT::TestCase
       files.reverse_each { |f|
 	if FileTest.directory?(f)
 	  Dir.delete(f)
-	elsif FileTest.file?(f)
-	  File.delete(f)
 	else
-	  raise "can't delete #{f} " + FileTest.directory?(f).inspect +
-	  FileTest.file?(f).inspect
+	  File.delete(f)
 	end
       }
     end
   end
 
   def setup
-    @scratch_dir = File.join(Dir.getwd, "_scratch_" + name)
+    @scratch_dir = File.join(Dir.getwd, "_scratch_" +
+                             name.gsub(/^(.*?)\((.*)\)$/, '\2#\1'))
     @data_dir = File.join(Dir.getwd, "tests", "data")
     @scratch_hash = {}
 

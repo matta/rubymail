@@ -82,7 +82,7 @@ class TestMail__KeyedMailbox < TestBase
     assert_equal(false, File::exists?(file))
 
     assert_no_exception {
-      queue.delete('ABDFABDF')
+      queue.delete('ABDFAABBDF')
     }
   end
 

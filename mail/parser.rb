@@ -8,6 +8,7 @@
 =end
 
 require 'mail/message'
+require 'mail/parser/multipart'
 
 module Mail
 
@@ -28,7 +29,7 @@ module Mail
     # Parse a message from the IO object +io+ and return a new
     # message.
     def parse(input)
-      parse_low(input, 0)
+      parse_low(PushbackReader.new(input), 0)
     end
 
     private
@@ -48,26 +49,17 @@ module Mail
           (depth > 0 || message.header['mime-version'] =~ /\b1\.0\b/)
         parse_multipart_body(input, message, depth)
       else
-        data = ''
-        while line = input.gets
-          data << line
-        end
-        if data.length == 0
-          data = nil
-        elsif depth > 0
-          # If we're parsing a multipart entity, get rid of the last
-          # end of line terminator, since it is actually part of the
-          # part separation boundary.
-          data.chomp!("\n")
+        data = nil
+        while chunk = input.read
+          data ||= ''
+          data << chunk
         end
         message.body = data
       end
     end
 
     def parse_multipart_body(input, message, depth)
-      require 'mail/parser/multipart'
-
-      input = Mail::Parser::Multipart.
+      input = MultipartReader.
         new(input, message.header.param('content-type', 'boundary'))
 
       # Reach each part, adding it to this entity as appropriate.
@@ -75,12 +67,11 @@ module Mail
 
         if input.preamble? || input.epilogue?
           data = nil
-          while line = input.gets
+          while chunk = input.read
             data ||= ''
-            data << line
+            data << chunk
           end
           if data
-            data.chomp!("\n") unless input.epilogue? && depth == 0
             if input.preamble?
               message.preamble = data
             else
@@ -99,40 +90,43 @@ module Mail
     EXTRACT_FIELD_NAME_RE = /\A(#{FIELD_NAME}) */o
 
     def parse_header(input, message)
-      value = nil
-      name = nil
-      first = true
-      while line = input.gets
-	if value
-          if line =~ /\A[ \t]+/
-            value += line
-            next
-          else
-            message.header.add(name, value)
-            name = nil
-            value = nil
-          end
-	end
-
-        if first && line =~ /^From /
-          message.header.mbox_from = line
+      data = nil
+      header = nil
+      pushback = nil
+      while chunk = input.read
+        data ||= ''
+        data << chunk
+        if data[0] == ?\n
+          header = nil
+          data[0, 1] = ''
+          rest = data
         else
-          case line
-          when EXTRACT_FIELD_NAME_RE
-            name = $1
-            value = $'
-          when /^$/
-            break
-          else
-            name = nil
-            value = nil
-          end
+          header, rest = data.split("\n\n", 2)
         end
-        first = false
+        break if rest
       end
-      message.header.add(name, value) if value
+      input.pushback(rest)
+      parse_header_string(header, message) if header
+    end
+
+    def parse_header_string(string, message)
+      first = true
+      string.split(/\n(?!\s)/).each { |field|
+        if first && field =~ /^From /
+          message.header.mbox_from = field
+        elsif field =~ EXTRACT_FIELD_NAME_RE
+          message.header.add($1, $'.chomp("\n"))
+        end
+      }
     end
 
   end
 
+end
+
+if $0 == __FILE__
+  File.open("../tests/data/parser.nested-simple") { |f|
+    parser = Mail::Parser.new
+    message = parser.parse(f)
+  }
 end

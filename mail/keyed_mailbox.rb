@@ -47,7 +47,7 @@ module Mail
     # returns nil if the message is missing.
     def retrieve(key)
       begin
-        message_filename(dereference_key(key))
+        message_filename(dereference_key(key)).untaint
       rescue Errno::ENOENT
         nil
       end
@@ -78,7 +78,8 @@ module Mail
     private
 
     def key_filename(key)
-      File.join(@dir, '.index', key.upcase)
+      raise ArgumentError, key unless key =~ /^[A-Za-z\d]{10}$/
+      File.join(@dir, '.index', key.upcase).untaint
     end
 
     def dereference_key(key)
@@ -86,11 +87,13 @@ module Mail
     end
 
     def message_filename(basename)
+      raise ArgumentError, basename unless basename =~ /^[\w\.]+$/
+      basename.untaint
       catch(:found) {
         [ File.join(@dir, 'new', basename),
           File.join(@dir, 'cur', basename) ].each { |curr|
           Dir["#{curr}*"].each { |fullname|
-            throw(:found, fullname)
+            throw(:found, fullname.untaint)
           }
         }
         nil

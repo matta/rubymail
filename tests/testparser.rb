@@ -30,14 +30,14 @@ class TestMailParser < TestBase
       p.parse(f)
     }
     assert_instance_of(Mail::Message, m)
-    assert_equal("From matt@lickey.com  Mon Dec 24 00:00:06 2001\n",
+    assert_equal("From matt@lickey.com  Mon Dec 24 00:00:06 2001",
                  m.header.mbox_from)
-    assert_equal("matt@example.net\n", m.header[0])
-    assert_equal("matt@example.net\n", m.header['from'])
-    assert_equal("matt@example.com\n", m.header[1])
-    assert_equal("matt@example.com\n", m.header['to'])
-    assert_equal("test message\n", m.header[2])
-    assert_equal("test message\n", m.header['subject'])
+    assert_equal("matt@example.net", m.header[0])
+    assert_equal("matt@example.net", m.header['from'])
+    assert_equal("matt@example.com", m.header[1])
+    assert_equal("matt@example.com", m.header['to'])
+    assert_equal("test message", m.header[2])
+    assert_equal("test message", m.header['subject'])
     assert_equal("message body\nhas two lines\n", m.body)
   end
 
@@ -46,23 +46,24 @@ class TestMailParser < TestBase
     m = data_as_file('parser.simple-mime') { |f|
       p.parse(f)
     }
+
     assert_instance_of(Mail::Message, m)
-    assert_equal("Nathaniel Borenstein <nsb@bellcore.com>\n", m.header[0])
-    assert_equal("Nathaniel Borenstein <nsb@bellcore.com>\n", m.header['from'])
-    assert_equal("Ned Freed <ned@innosoft.com>\n", m.header[1])
-    assert_equal("Ned Freed <ned@innosoft.com>\n", m.header['To'])
-    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)\n", m.header[2])
-    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)\n",
+    assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header[0])
+    assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header['from'])
+    assert_equal("Ned Freed <ned@innosoft.com>", m.header[1])
+    assert_equal("Ned Freed <ned@innosoft.com>", m.header['To'])
+    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)", m.header[2])
+    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)",
                  m.header['Date'])
-    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)\n",
+    assert_equal("Sun, 21 Mar 1993 23:56:48 -0800 (PST)",
                  m.header['Date'])
-    assert_equal("Sample message\n", m.header[3])
-    assert_equal("Sample message\n", m.header['Subject'])
-    assert_equal("1.0\n", m.header[4])
-    assert_equal("1.0\n", m.header['MIME-Version'])
-    assert_equal("multipart/mixed; boundary=\"simple boundary\"\n",
+    assert_equal("Sample message", m.header[3])
+    assert_equal("Sample message", m.header['Subject'])
+    assert_equal("1.0", m.header[4])
+    assert_equal("1.0", m.header['MIME-Version'])
+    assert_equal("multipart/mixed; boundary=\"simple boundary\"",
                  m.header[5])
-    assert_equal("multipart/mixed; boundary=\"simple boundary\"\n",
+    assert_equal("multipart/mixed; boundary=\"simple boundary\"",
                  m.header['Content-Type'])
 
     # Verify preamble
@@ -81,7 +82,7 @@ It does NOT end with a linebreak.}, m.part(0).body)
     assert_equal(%q{This is explicitly typed plain US-ASCII text.
 It DOES end with a linebreak.
 }, m.part(1).body)
-    assert_equal("text/plain; charset=us-ascii\n",
+    assert_equal("text/plain; charset=us-ascii",
                  m.part(1).header['content-type'])
 
     # Verify the epilogue
@@ -102,10 +103,19 @@ It DOES end with a linebreak.
       Mail::Parser.new.parse(f)
     }
 
-    assert_equal("", m.preamble)
-    assert_equal("", m.part(0).preamble)
-    assert_equal("", m.part(0).epilogue)
+    assert_nil(m.preamble)
+    assert_nil(m.part(0).preamble)
+    assert_nil(m.part(0).epilogue)
     assert_equal("\n", m.epilogue)
+
+    m = data_as_file('parser.nested-simple3') { |f|
+      Mail::Parser.new.parse(f)
+    }
+
+    assert_equal("\n", m.preamble)
+    assert_equal("\n", m.part(0).preamble)
+    assert_equal("\n", m.part(0).epilogue)
+    assert_equal("\n\n", m.epilogue)
   end
 
   def test_parse_nested_multipart
@@ -119,9 +129,9 @@ It DOES end with a linebreak.
     assert_equal("\nThis is level 1's epilogue.\n\n", m.epilogue)
 
     # Verify a smattering of headers
-    assert_equal("multipart/mixed; boundary=\"=-=-=\"\n",
+    assert_equal("multipart/mixed; boundary=\"=-=-=\"",
                  m.header['content-type'])
-    assert_equal("Some nested multiparts\n", m.header['subject'])
+    assert_equal("Some nested multiparts", m.header['subject'])
 
     # Verify part 0
     begin
@@ -136,7 +146,7 @@ It DOES end with a linebreak.
       assert_nil(part.preamble)
       assert_nil(part.epilogue)
       assert_equal(1, part.header.length)
-      assert_equal("inline\n", part.header['content-disposition'])
+      assert_equal("inline", part.header['content-disposition'])
       assert_equal("This is the first part.\n", part.body)
     end
 
@@ -144,7 +154,7 @@ It DOES end with a linebreak.
     begin
       part = m.part(2)
       assert_equal(1, part.header.length)
-      assert_equal("multipart/mixed; boundary=\"==-=-=\"\n",
+      assert_equal("multipart/mixed; boundary=\"==-=-=\"",
                    part.header['content-type'])
       assert_equal("This is level 2's preamble.\n", part.preamble)
       assert_equal("This is level 2's epilogue.  It has no trailing end of line.", part.epilogue)
@@ -155,7 +165,7 @@ It DOES end with a linebreak.
         assert_nil(part.preamble)
         assert_nil(part.epilogue)
         assert_equal(1, part.header.length)
-        assert_equal("inline\n", part.header['content-disposition'])
+        assert_equal("inline", part.header['content-disposition'])
         assert_equal("This is the first nested part.\n", part.body)
       end
 
@@ -165,7 +175,7 @@ It DOES end with a linebreak.
         assert_nil(part.preamble)
         assert_nil(part.epilogue)
         assert_equal(1, part.header.length)
-        assert_equal("inline\n", part.header['content-disposition'])
+        assert_equal("inline", part.header['content-disposition'])
         assert_equal("This is the second nested part.\n", part.body)
       end
 
@@ -173,7 +183,7 @@ It DOES end with a linebreak.
       begin
         part = m.part(2).part(2)
         assert_equal(1, part.header.length)
-        assert_equal("multipart/mixed; boundary=\"===-=-=\"\n",
+        assert_equal("multipart/mixed; boundary=\"===-=-=\"",
                      part.header['content-type'])
         assert_equal("This is level 3's preamble.\n", part.preamble)
         assert_equal("This is level 3's epilogue.\n", part.epilogue)
@@ -191,7 +201,7 @@ It DOES end with a linebreak.
           assert_nil(part.preamble)
           assert_nil(part.epilogue)
           assert_equal(1, part.header.length)
-          assert_equal("inline\n", part.header['content-disposition'])
+          assert_equal("inline", part.header['content-disposition'])
           assert_equal("This is the second doubly nested part.\n", part.body)
         end
       end
@@ -202,7 +212,7 @@ It DOES end with a linebreak.
         assert_nil(part.preamble)
         assert_nil(part.epilogue)
         assert_equal(1, part.header.length)
-        assert_equal("inline\n", part.header['content-disposition'])
+        assert_equal("inline", part.header['content-disposition'])
         assert_equal("This is the third part.\n", part.body)
       end
     end
