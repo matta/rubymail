@@ -13,6 +13,22 @@ require 'tempfile'
 
 class TestMailHeader < TestBase
 
+  def new_header(string = nil)
+    string ||= <<-EOF
+    To: bob@example.net
+    Cc: sammy@example.com
+    Resent-To: president@example.com
+    Subject: yoda lives!
+    
+    EOF
+    header = string_as_file(string) { |file|
+      Mail::Header.new(file)
+    }
+    assert_equal(4, header.size)
+    assert_equal(header.length, header.size)
+    header
+  end
+
   # Compare header contents against an expected result. 'result'
   # should be an array of arrays, with the first element being the
   # required key name and the second element being the whole line.
@@ -21,14 +37,24 @@ class TestMailHeader < TestBase
     header.each_with_index { |value, index|
       assert_operator(index, '<', result.length,
 		      "result has too few elements")
-      assert_equal(3, result[index].length)
+      assert_operator(2, '<=', result[index].length,
+		      "Expected result item must have at last two elements.")
+      assert_operator(3, '>=', result[index].length,
+		      "Expected result item must have no more than three " +
+		      "elements.")
       assert_equal(2, value.length)
 
       expected_tag, expected_header, expected_stripped = result[index]
       got_tag, got_header = value
 
+      if result[index].length < 3
+	expected_stripped = Mail::Header.strip_field_name(expected_header)
+      end
+
       assert_equal(header[index], got_header)
-      assert_equal(Mail::Header.strip_field_name(header[index]), expected_stripped)
+      assert_equal(Mail::Header.strip_field_name(header[index]),
+		   expected_stripped,
+		   "Stripped result #{index} is wrong")
 
       assert_equal(expected_tag, got_tag,
 		   "field #{index} has incorrect name, " +
@@ -38,7 +64,8 @@ class TestMailHeader < TestBase
 		   "field #{index} has incorrect line, " +
 		   "expected #{expected_header.inspect} got " +
 		   "#{got_header.inspect}")
-      assert_equal(expected_stripped, Mail::Header.strip_field_name(got_header))
+      assert_equal(expected_stripped,
+		   Mail::Header.strip_field_name(got_header))
       assert_equal(header[expected_tag], expected_header)
       assert_equal(expected_stripped, header.get(got_tag))
     }
@@ -276,9 +303,53 @@ EOF
     }
     compare_header(h, expected)
   end
-end
 
-if __FILE__ == $0
-  require 'runit/cui/testrunner'
-  RUNIT::CUI::TestRunner.run(TestMailHeader.suite)
+  def verify_match(header, field_name, regexp, expected_result)
+    h = header.match(field_name, regexp)
+    assert_kind_of(Mail::Header, h)
+    assert_equal(h.length != 0, header.match?(field_name, regexp))
+    if h.length == 0
+      assert_equal(nil, expected_result)
+    else
+      assert_not_nil(expected_result)
+      compare_header(h, expected_result)
+    end
+  end
+
+  def test_match
+    header = new_header
+
+    # First verify argument type checking
+    bad_calls = [
+      [ "this_is_okay", "this_is_bad1", ArgumentError, /this_is_bad1/ ],
+      [ /this_is_bad2/, /this_is_okay/, ArgumentError, /this_is_bad2/ ],
+      [ nil, "this_is_bad3", ArgumentError, /this_is_bad3/ ]
+    ]
+    bad_calls.each {|field_name, regexp, exception, exception_match|
+      e = assert_exception(exception) {
+	header.match(field_name, regexp)
+      }
+      assert_match(exception_match, e.message)
+      e = assert_exception(exception) {
+	header.match?(field_name, regexp)
+      }
+      assert_match(exception_match, e.message)
+    }
+
+    verify_match(header, nil, /this will not match anything/, nil)
+    verify_match(header, "to", /./,
+		 [ [ 'to', "To: bob@example.net\n" ] ])
+    verify_match(header, "tO", /./,
+		 [ [ 'to', "To: bob@example.net\n" ] ])
+    verify_match(header, "To", /./,
+		 [ [ 'to', "To: bob@example.net\n" ] ])
+    verify_match(header, "^to", /./, nil)
+    verify_match(header, nil, /^(to|cc|resent-to):.*/, nil)
+    verify_match(header, nil, /^(to|cc|resent-to):.*/i,
+		 [ [ 'to', "To: bob@example.net\n" ],
+		   [ 'cc', "Cc: sammy@example.com\n" ],
+		   [ 'resent-to',
+		     "Resent-To: president@example.com\n"] ])
+  end
+
 end

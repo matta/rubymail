@@ -11,204 +11,210 @@ require 'tests/testbase'
 require 'mail/lda'
 
 class TestMailLDA < TestBase
+
+  @@count = 0
+  FROM_RE = /^From .*?@.*?  (Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}/
+
   def setup
     super
-    @message_filename = File.join(scratch_dir, "message")
-    File.open(@message_filename, "w") { |f|
-      f.write(<<EOF)
-From: test-from@example.com
-To: test-to@example.com
-Subject: this is a test message
 
-This is a test message
-EOF
-    }
+    @message_string = <<-EOF
+    From: test-from@example.com
+    To: test-to@example.com
+    Subject: this is a test message
 
-    @reject_script_filename = File.join(scratch_dir, "reject.rb")
-    @reject_log = File.join(scratch_dir, "reject.log")
-    File.open(@reject_script_filename, "w") { |f|
-      f.write(<<EOF)
-require 'mail/lda'
-mail = File.open("#{@message_filename}", "r")
-lda = Mail::LDA.new(mail, "#{@reject_log}")
-lda.reject()
-EOF
-    }
+    From test
+    EOF
+    @message_string.freeze
 
-    @defer_script_filename = File.join(scratch_dir, "defer.rb")
-    @defer_log = File.join(scratch_dir, "defer.log")
-    File.open(@defer_script_filename, "w") { |f|
-      f.write(<<EOF)
-require 'mail/lda'
-mail = File.open("#{@message_filename}", "r")
-lda = Mail::LDA.new(mail, "#{@defer_log}")
-lda.defer()
-EOF
-    }
   end
 
-  def deliver_bounce(script, log, exitcode, exit_description)
-    assert_equal(false, test(?e, log))
-    assert_equal(false, system(ruby_bin, script))
-    assert_equal(exitcode, $?)
-    assert_equal(true, test(?e, log))
-    assert_not_nil(test(?s, log))
-    assert_operator(0, "<", test(?s, log))
-    
-    File.open(log, "r") { |f|
-      blank_lines = f.grep(/^\s*$/)
-      assert_equal(0, blank_lines.length)
+  # Make sure the unix mbox file holds the same message as
+  # @message_string
+  def validate_mbox(mailbox)
 
-      f.seek(0, IO::SEEK_SET)
-      subject = f.grep(/Subject:/)
-      assert_equal(1, subject.length)
-      assert_match(/\d+: Subject: this is a test message/, subject[0])
-
-      f.seek(0, IO::SEEK_SET)
-      from = f.grep(/From:/)
-      assert_equal(1, from.length)
-      assert_match(/\d+: From: test-from@example\.com/, from[0])
-
-      f.seek(0, IO::SEEK_SET)
-      from = f.grep(/To:/)
-      assert_equal(1, from.length)
-      assert_match(/\d+: To: test-to@example\.com/, from[0])
-
-      f.seek(0, IO::SEEK_SET)
-      from = f.grep(/Action:/)
-      assert_equal(1, from.length, "from is #{from.inspect}")
-      assert_match(/\d+: Action: #{exit_description}$/, from[0])
-    }
-  end
-
-  def test_mbox()
-    deliver_bounce(@reject_script_filename, @reject_log, 77 << 8, "reject")
-    deliver_bounce(@defer_script_filename, @defer_log, 75 << 8, "defer")
-
-    from_re = /^From .*?@.*?  (Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ \d]\d \d{2}:\d{2}:\d{2} \d{4}/
-
-    # Now test successful delivery, continue = true
-    mailbox = File.join(scratch_dir, "mailbox")
-    logfile = File.join(scratch_dir, "logfile")
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
-    lda = Mail::LDA.new(nil, logfile)
-    lda.save(mailbox, true)
-    assert_equal(true, test(?e, mailbox))
-    assert_equal(true, test(?e, logfile))
     File.open(mailbox, "r") { |f|
       lines = f.readlines
       f.close
-      assert_match(from_re, lines[0])
-      assert_equal(["\n", "\n"], lines[1, lines.length - 1])
+      assert_match(FROM_RE, lines[0])
+      assert_equal("From: test-from@example.com\n", lines[1])
+      assert_equal("To: test-to@example.com\n", lines[2])
+      assert_equal("Subject: this is a test message\n", lines[3])
+      assert_equal("\n", lines[4])
+      assert_equal(">From test\n", lines[5])
+      assert_equal("\n", lines[6])
+      assert_equal(nil, lines[7])
     }
-    assert_equal(2, File.delete(mailbox, logfile))
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
+  end
 
-    # Now test successful delivery, continue = false
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
-    lda = Mail::LDA.new(nil, logfile)
-    e = assert_exception(Mail::LDA::DeliverySuccess) {
-      lda.save(mailbox)
-    }
-    assert_equal(false, e.failed?)
-    assert_equal(0, e.status)
-    assert_equal("saved to mbox #{mailbox.inspect}", e.message)
-    assert_equal(true, test(?e, mailbox))
-    assert_equal(true, test(?e, logfile))
-    File.open(mailbox, "r") { |f|
-      lines = f.readlines
-      f.close
-      assert_match(from_re, lines[0])
-      assert_equal(["\n", "\n"], lines[1, lines.length - 1])
-    }
-    assert_equal(2, File.delete(mailbox, logfile))
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
+  def scratch_logname
+    @@count = @@count.succ
+    log = scratch_filename("log-#{@@count}")
+    assert_not_nil(log)
+    assert_kind_of(String, log)
+    log
+  end
 
-    # Now test succesful delivery with a real message
-    mailbox = File.join(scratch_dir, "mailbox")
-    logfile = File.join(scratch_dir, "logfile")
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
-    File.open(@message_filename, "r") { |f|
-      lda = Mail::LDA.new(f, logfile)
-      f.close
-      lda.save(mailbox, true)
-      assert_equal(true, test(?e, mailbox))
-      assert_equal(true, test(?e, logfile))
-      File.open(mailbox, "r") { |f|
-	lines = f.readlines
-	f.close
-	assert_match(from_re, lines[0])
-	assert_equal(["From: test-from@example.com\n",
-		       "To: test-to@example.com\n",
-		       "Subject: this is a test message\n",
-		       "\n",
-		       "This is a test message\n",
-		       "\n"],
-		     lines[1,lines.length - 1])
+  def new_lda()
+    log = scratch_logname
+    lda = string_as_file(@message_string) { |file|
+      Mail::LDA.new(file, log)
+    }
+    assert_not_nil(lda)
+    assert(test(?e, log))
+    [lda, log]
+  end
+
+  def verify_no_errors_in_logfile(logfile)
+    assert(!file_contains(logfile,
+			  /exception|backtrace|Delivery|error/i))
+  end
+
+  def test_defer()
+    defer_reason = "I might not like you any more"
+    lda, log = new_lda
+    e = assert_exception(Mail::LDA::DeliveryDefer) {
+      lda.defer(defer_reason)
+    }
+    assert_equal(e.message, defer_reason)
+    assert(file_contains(log, Regexp.escape(defer_reason)))
+    verify_no_errors_in_logfile(log)
+  end
+
+  def test_reject()
+    reject_reason = "I don't like you any more"
+    lda, log = new_lda
+    e = assert_exception(Mail::LDA::DeliveryReject) {
+      lda.reject(reject_reason)
+    }
+    assert_equal(e.message, reject_reason)
+    assert(file_contains(log, Regexp.escape(reject_reason)))
+    verify_no_errors_in_logfile(log)
+  end
+
+  def process_boilerplate
+    log = scratch_logname
+    string_as_file(@message_string) {|file|
+      Mail::LDA.process(file, log) { |lda|
+	yield(lda, log)
       }
     }
+  end
 
-    # Now test succesful delivery with a real message, with continue false
-    assert_equal(2, File.delete(mailbox, logfile))
-    assert_equal(false, test(?e, mailbox))
-    assert_equal(false, test(?e, logfile))
-    File.open(@message_filename, "r") { |f|
-      lda = Mail::LDA.new(f, logfile)
-      f.close
-      e = assert_exception(Mail::LDA::DeliverySuccess) {
+  def test_process()
+    log = nil
+
+    # Test what happens when the lda script does nothing
+    e = assert_exception(Mail::LDA::DeliveryDefer) {
+      process_boilerplate { |lda, log|
+	assert_not_nil(lda)
+	assert_not_nil(log)
+	# do nothing
+      }
+    }
+    assert_equal("finished without a final delivery", e.message)
+    assert(file_contains(log,
+			 /Action: defer: finished without a final delivery/))
+
+    # Test what happens when the lda script raises a random exception
+    e = assert_exception(Mail::LDA::DeliveryFailure) {
+      process_boilerplate { |lda, log|
+	assert_not_nil(lda)
+	assert_not_nil(log)
+	raise "URP!"
+      }
+    }
+    assert_equal("uncaught exception", e.message)
+    assert(file_contains(log, /uncaught exception: .*RuntimeError.* "URP!"/))
+    assert(file_contains(log, /uncaught exception backtrace:/))
+    assert_kind_of(RuntimeError, e.original_exception)
+    assert_equal("URP!", e.original_exception.message)
+
+    # Test what happens when the lda script actually delivers
+    mailbox = scratch_filename("mailbox")
+    e = assert_exception(Mail::LDA::DeliverySuccess) {
+      process_boilerplate { |lda, log|
+	assert_not_nil(lda)
+	assert_not_nil(log)
 	lda.save(mailbox)
       }
-      assert_kind_of(Mail::LDA::DeliverySuccess, e)
-      assert_equal(false, e.failed?)
-      assert_equal(0, e.status)
-      assert_equal("saved to mbox #{mailbox.inspect}", e.message)
-      assert_equal(true, test(?e, mailbox))
-      assert_equal(true, test(?e, logfile))
-      File.open(mailbox, "r") { |f|
-	lines = f.readlines
-	f.close
-	assert_match(from_re, lines[0])
-	assert_equal(["From: test-from@example.com\n",
-		       "To: test-to@example.com\n",
-		       "Subject: this is a test message\n",
-		       "\n",
-		       "This is a test message\n",
-		       "\n"],
-		     lines[1,lines.length - 1])
-      }
     }
+    mailbox_re = Regexp::escape(mailbox.inspect)
+    assert_match(/^saved to mbox #{mailbox_re}$/, e.message)
+    assert(file_contains(log, /\bAction: save to #{mailbox_re}$/))
+    validate_mbox(mailbox)
+  end
+
+  def test_exitcode()
+    e = assert_exception(ArgumentError) {
+      Mail::LDA.exitcode(5)
+    }
+    assert_equal("argument is not a DeliveryStatus exception: 5 (Fixnum)",
+		 e.message)
+
+    e = assert_exception(ArgumentError) {
+      Mail::LDA.exitcode(RuntimeError.new("hi mom!"))
+    }
+    assert_match(/argument is not a DeliveryStatus exception: .*RuntimeError/,
+		 e.message)
+
+    assert_equal(Mail::MTA::EXITCODE_DELIVERED,
+		 Mail::LDA.exitcode(Mail::LDA::DeliverySuccess.new("")))
+    assert_equal(Mail::MTA::EXITCODE_REJECT,
+		 Mail::LDA.exitcode(Mail::LDA::DeliveryReject.new("")))
+    assert_equal(Mail::MTA::EXITCODE_DEFER,
+		 Mail::LDA.exitcode(Mail::LDA::DeliveryDefer.new("")))
+    assert_equal(Mail::MTA::EXITCODE_DEFER,
+		 Mail::LDA.exitcode(Mail::LDA::LoggingError.new("")))
+    assert_equal(Mail::MTA::EXITCODE_DEFER,
+		 Mail::LDA.exitcode(Mail::LDA::DeliveryFailure.new("")))
+    assert_equal(Mail::MTA::EXITCODE_DEFER,
+		 Mail::LDA.exitcode(Mail::LDA::DeliveryStatus.new("")))
+  end
+  
+  def test_save()
+    # Test succesful delivery with a real message
+    mailbox = scratch_filename("mailbox.1")
+    assert_equal(false, test(?e, mailbox))
+    lda, log = new_lda
+    lda.save(mailbox, true)
+    assert_equal(true, test(?e, mailbox))
+    assert_equal(true, test(?e, log))
+    verify_no_errors_in_logfile(log)
+    validate_mbox(mailbox)
+
+    # Test successful delivery with a real message, continue = false
+    mailbox = scratch_filename("mailbox.2")
+    assert_equal(false, test(?e, mailbox))
+    lda, log = new_lda
+    e = assert_exception(Mail::LDA::DeliverySuccess) {
+      lda.save(mailbox, false)
+    }
+    assert_equal("saved to mbox #{mailbox.inspect}", e.message)
+    assert_equal(true, test(?e, mailbox))
+    assert_equal(true, test(?e, log))
+    verify_no_errors_in_logfile(log)
+    validate_mbox(mailbox)
   end
 
   def test_deliver_pipe
-    catfile = File.join(scratch_dir, "catfile.pipe")
-    logfile = File.join(scratch_dir, "logfile.pipe")
+    
+    catfile = scratch_filename("catfile.pipe")
+    logfile = scratch_filename("logfile.pipe")
     command = "/bin/cat > #{catfile}"
 
-    message = Mail::Message.new(nil)
-    message.header.add('from', 'foo@bar.baz')
-    message.header.add('subject', 'here comes the sun')
-    message.header.add('to', 'test@example.com')
-    
-    lda = Mail::LDA.new(message, logfile)
+      lda, log = new_lda
     
     assert_equal(false, test(?e, catfile))
-    assert_equal(true, test(?e, logfile))
+    assert_equal(true, test(?e, log))
 
     lda.pipe(command, true)
     assert(test(?e, catfile))
     assert_equal(0, $?, "exit value not propagated")
-    
-    File.open(logfile) { |f|
-      command_re = Regexp::escape(command.inspect)
-      assert_equal(1, f.grep(/\bAction: pipe to #{command_re}/).length)
-      f.seek(0, IO::SEEK_SET)
-      assert_equal(0, f.grep(/error/i).length)
-    }
+
+    command_re = Regexp::escape(command.inspect)
+    assert(file_contains(log, /\bAction: pipe to #{command_re}/))
+    verify_no_errors_in_logfile(log)
 
     # test that a successful pipe delivery will try to exit
     command = "/bin/cat >> #{catfile}"
@@ -216,79 +222,98 @@ EOF
       lda.pipe(command)
     }
     assert_equal("pipe to #{command.inspect}", e.message)
-    assert_equal(0, e.status)
-    assert_equal(false, e.failed?)
 
-    File.open(logfile) { |f|
-      command_re = Regexp::escape(command.inspect)
-      assert_equal(1, f.grep(/\bAction: pipe to #{command_re}/).length)
-      f.seek(0, IO::SEEK_SET)
-      assert_equal(0, f.grep(/error/i).length)
-    }
+    assert(file_contains \
+	   (log, /\bAction: pipe to #{Regexp::escape(command.inspect)}/))
+    verify_no_errors_in_logfile(log)
   end
 
   def test_deliver_pipe_error
-    logfile = File.join(scratch_dir, "logfile.pipe")
+
+    # test with continue = true
+    lda, log = new_lda
     command = "/bin/sh -c \"exit 32\""
-
-    message = Mail::Message.new(nil)
-    message.header.add('from', 'foo@bar.baz')
-    message.header.add('subject', 'here comes the sun')
-    message.header.add('to', 'test@example.com')
-    
-    lda = Mail::LDA.new(message, logfile)
-    assert_equal(true, test(?e, logfile))
-
-    begin
+    e = assert_exception(Mail::LDA::DeliveryFailure) {
       lda.pipe(command, true)
-    rescue Mail::LDA::DeliveryFailure
-      assert_equal(32 << 8, $!.status)
-      assert($!.failed?)
-      assert_equal("pipe failed for command #{command.inspect}",
-		   $!.message)
-    end
-    assert_equal(32 << 8, $?, "exit value not propagated")
-
-    File.open(logfile) { |f|
-      command_re = Regexp::escape(command.inspect)
-      assert_equal(1, f.grep(/\bAction: pipe to #{command_re}/).length)
-      f.seek(0, IO::SEEK_SET)
-      assert_equal(0, f.grep(/error/i).length)
     }
+    assert_equal(32 << 8, e.status)
+    assert_equal("pipe failed for command #{command.inspect}", e.message)
+    command_re = Regexp::escape(command.inspect)
+    assert(file_contains(log, /\bAction: pipe to #{command_re}/))
+    verify_no_errors_in_logfile(log)
 
-    # test that a failed pipe delivery will try to defer
+    # test with continue = false
+    lda, log = new_lda
     command = "/bin/sh -c \"exit 1\""
     e = assert_exception(Mail::LDA::DeliveryFailure) {
       lda.pipe(command, false)
     }
     assert_equal("pipe failed for command #{command.inspect}", e.message)
     assert_equal(1 << 8, e.status)
-    assert(e.failed?)
-
-    File.open(logfile) { |f|
-      command_re = Regexp::escape(command.inspect)
-      error_re = Regexp::escape("Error: pipe failed \$? = " + $?.inspect)
-      assert_equal(1, f.grep(/\bAction: pipe to #{command_re}/).length)
-      f.seek(0, IO::SEEK_SET)
-      assert_equal(0, f.grep(/error/i).length)
-    }
+    command_re = Regexp::escape(command.inspect)
+    assert(file_contains(log, /\bAction: pipe to #{command_re}/))
   end
 
   def test_nil_log
-    assert_no_exception() {
-      File.open(@message_filename) {|f|
-	Mail::LDA.new(f, nil)
+    lda = nil
+    string_as_file(@message_string) { |f|
+      lda = Mail::LDA.new(f, nil)
+    }
+    lda.logging_level = 10
+    lda.log(1, "this is ignored")
+    e = assert_exception(Mail::LDA::LoggingError) {
+      lda.log(0, "this should raise an exception")
+    }
+    assert_match(/failed to log high priority message: this should raise an exception/, e.message)
+    assert_equal(nil, e.original_exception)
+  end
+
+  def test_log
+    lda, log = new_lda
+
+    # Default logging level is 2
+    assert_equal(2, lda.logging_level)
+    
+    # First make sure we get errors when we set log level to
+    # something bogus.
+    assert_exception(ArgumentError) {
+      lda.logging_level = "foo"
+    }
+    assert_exception(TypeError) {
+      lda.logging_level = Object.new
+    }
+    e = assert_exception(ArgumentError) {
+      lda.logging_level = -1
+    }
+    assert_match(/invalid logging level value -1/, e.message)
+    e = assert_exception(ArgumentError) {
+      lda.logging_level = 0
+    }
+    assert_match(/invalid logging level value 0/, e.message)
+
+    1.upto(5) { |logset|
+      lda.logging_level = logset
+      0.upto(5) { |logat|
+	lda.log(logat, "set#{logset} at#{logat}")
+      }
+    }
+
+    1.upto(5) { |log_level|
+      0.upto(5) { |logat|
+	re = /: set#{log_level} at#{logat}/
+	contains = file_contains(log, re)
+	if logat <= log_level
+	  assert(contains)
+	else
+	  assert(!contains)
+	end
       }
     }
   end
 
   # Test message access functions of Mail::LDA
   def test_message_access
-    lda = nil
-    File.open(@message_filename) {|f|
-      lda = Mail::LDA.new(f, nil)
-    }
-    assert_not_nil(lda)
+    lda, log = new_lda
     
     # Test the message method, to get at the message itself
     assert_respond_to(:message, lda)
@@ -312,9 +337,4 @@ EOF
     assert_kind_of(Array, lda.body)
     assert_same(lda.message.body, lda.body)
   end
-end
-
-if __FILE__ == $0
-  require 'runit/cui/testrunner'
-  RUNIT::CUI::TestRunner.run(TestMailLDA.suite)
 end

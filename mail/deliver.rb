@@ -26,10 +26,6 @@ module Mail
     # file during delivery.  No ".lock" style locking is performed.
     # If that is desired, it should be performed before calling this
     # method.
-    #
-    # FIXME: this method really should take a generic "lock me" style
-    # object that takes a file and filename, with the default simply
-    # performing flock locking.
     def deliver_mbox(filename, message)
       File.open(filename, File::WRONLY|File::APPEND|File::CREAT, 0600) { |f|
 	f.flock(File::LOCK_EX)

@@ -55,7 +55,7 @@ module Mail
 
 	if line
 	  field_name, line = format_line(field_name, line)
-	  insert(field_name, line, -1) if line
+	  insert(field_name, line) if line
 	end
 
 	case ln
@@ -76,6 +76,16 @@ module Mail
     def clear()
       @names = []
       @lines = []
+    end
+
+    # Return the number of fields in this object
+    def length
+      @names.length
+    end
+
+    # Synonym for #length.
+    def size
+      @names.length
     end
 
     # Iterate over each header.
@@ -109,7 +119,6 @@ module Mail
     # include the header field name.
     #
     # This method accepts all argument types that #[] does.
-
     def get(field_name)
       header = self[field_name]
       unless header.nil?
@@ -117,6 +126,39 @@ module Mail
       else
 	nil
       end
+    end
+
+    # Match +regexp+ against all fields in the header with a field
+    # name of <tt>field_name</tt>.  If <tt>field_name</tt> is nil, all
+    # fields are tested.  Returns a new Mail::Header holding all
+    # matching headers.
+    #
+    # See also: #match?
+    def match(field_name, regexp)
+      massage_match_args(field_name, regexp) { |field_name, regexp|
+	header = Mail::Header.new
+	found = each { |t, f|
+	  if (field_name.nil? || t == field_name) && f =~ regexp
+	    header.insert(t, f)
+	  end
+	}
+	header
+      }
+    end
+
+    # Match +regexp+ against all fields in the header with a field
+    # name of <tt>field_name</tt>.  If <tt>field_name</tt> is nil, all
+    # fields are tested.  Returns true if there is a match, false
+    # otherwise.
+    #
+    # See also: #match
+    def match?(field_name, regexp)
+      massage_match_args(field_name, regexp) { |field_name, regexp|
+	match = detect {|t, f|
+	  (field_name.nil? || t == field_name) && f =~ regexp
+	}
+	! match.nil?
+      }
     end
 
     class << self
@@ -139,7 +181,7 @@ module Mail
     # specifies the field name to use, otherwise it is extracted from
     # line.  When +index+ is -1 (the default if not specified) the
     # line is appended to the header, otherwise it is inserted at the
-    # specified index.  E.g. an +index+ of +0+ will prepend the header
+    # specified index.  E.g. an +index+ of 0 will prepend the header
     # line.
 
     def add(field_name, line, index = -1)
@@ -159,14 +201,13 @@ module Mail
     end
 
     # The string representation of the header
-    
     def to_s()
       @lines.join
     end
 
-    private
+    protected
 
-    def insert(field_name, line, index)
+    def insert(field_name, line, index = -1)
       if index < 0
 	@lines.push(line)
 	@names.push(field_name)
@@ -177,6 +218,8 @@ module Mail
       end
     end
 
+    private
+    
     def format_line(field_name, line)
       return field_name_format(field_name), line_format(line)
     end
@@ -191,7 +234,20 @@ module Mail
     def field_name_format(field_name)
       field_name.downcase.sub(/\s*:.*/, '')
     end
-    
+
+    def massage_match_args(field_name, regexp)
+      unless field_name.nil? || field_name.kind_of?(String)
+	raise ArgumentError, "must be" +
+	  " a string or nil, got #{field_name.inspect}"
+      end
+      unless regexp.kind_of?(Regexp)
+	raise ArgumentError, "regexp arg not of type Regexp" +
+	  ", got #{regexp.inspect}."
+      end
+      field_name = field_name.downcase unless field_name.nil?
+      yield(field_name, regexp)
+    end
+
   end
 
 end

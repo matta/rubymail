@@ -7,10 +7,9 @@
 #   as long as the above copyright notice is included.
 #
 
-#$LOAD_PATH.unshift("/home/matt/Lapidary/lib")
-$LOAD_PATH.unshift(".")
+$LOAD_PATH.unshift(".")		# get our stuff first
 
-require 'runit/cui/testrunner'
-require 'tests/testall'
-
-RUNIT::CUI::TestRunner.run(TestAll.suite)
+require 'rubyunit'
+Dir['tests/test*.rb'].each {|f|
+  require f
+}

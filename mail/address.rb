@@ -22,8 +22,6 @@ module Mail
   #   #local=, #domain=, #display_name=, #comments=).
   class Address
 
-    # FIXME: should freeze all instance variables after they're set
-
     ATEXT = '[\w=!#$%&\'*+-?^\`{|}~]+'
 
     # Create a new address.  If the +string+ argument is not nil, it
@@ -55,7 +53,6 @@ module Mail
     # Assign the local portion of the mail address.  This is the
     # portion that precedes the <tt>@</tt> sign.
     def local=(l)
-      # FIXME: should check for valid characters here.
       @local = l
     end
 
@@ -79,7 +76,6 @@ module Mail
     #
     # See also display_name
     def display_name=(str)
-      # FIXME: syntax check here?
       @display_name = str
     end
 
@@ -109,8 +105,6 @@ module Mail
     #
     # See also #comments, #name
     def comments=(comments)
-      # FIXME: gotta check for validity here
-      # FIXME: gotta handle single string argument
       @comments = comments
       @comments.freeze
     end
@@ -124,7 +118,6 @@ module Mail
     # Assign a domain name to this address.  This is the portion after
     # the <tt>@</tt> sign.  Any existing domain name will be changed.
     def domain=(domain)
-      # FIXME: gotta check for validity here
       @domain = if domain.nil? or domain == ''
 		  nil
 		else
@@ -440,4 +433,3 @@ module Mail
 
   end
 end
-

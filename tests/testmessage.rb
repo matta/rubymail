@@ -140,8 +140,3 @@ Second body line
   end
 
 end
-
-if __FILE__ == $0
-  require 'runit/cui/testrunner'
-  RUNIT::CUI::TestRunner.run(TestMailMessage.suite)
-end
