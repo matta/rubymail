@@ -1,0 +1,51 @@
+In rough priority order...but please let me know if something you need
+is missing.
+
+= Major Features
+
+- Implement common parsing functions
+
+  - parse from string
+  - parse from file
+  - parse from io object
+
+  This will make it easier to do common operations (avoiding creating
+  an RMail::Parser object each time).
+
+- Implement common serialization functions.
+
+  - serialize into new string
+  - serialize into IO stream
+
+- Provide a way to parse just the message headers, leaving the rest in
+  the input stream (for use by RubyFilter).  This also implies a
+  feature that parses a message body given a RMail::Header object and
+  an input stream.  This should be easy -- read line by line until you
+  get an empty line or EOF, then pass that off to parse_header as a
+  string to be parsed.  Parsing the body can just use a
+  PushbackReader.
+
+- Handle different end of line terminators everywhere (for both
+  parsing and generating).
+
+- Provide some way when parsing a message to start spooling to disk
+  for really large messages.  This would be easy to do depending on
+  how message body transparency is implemented.
+
+- MIME charset support in header fields and message bodies.  This
+  requires m18n support in ruby, so it won't be coming soon.
+
+- Maildir parsing.
+
+= Minor Features
+
+- Untainting of email addresses.  See Perl's CGI::Untaint::email.
+
+- Parser for Received: headers.  See Perl's Mail::Field::Received.
+
+= Documentation Tasks
+
+- A "howto" like documentation.
+
+  - How to write out a base64 encoded MIME part to a file.
+  - How to parse a unix MBOX file.

@@ -1,3 +1,7 @@
+= Changes in RubyMail 0.12 (released 2003-01-13)
+
+- Add an install.rb script.
+
 = Changes in RubyMail 0.11 (released 2003-01-11)
 
 - parse->serialize "transparency" greatly improved.  This means that
