@@ -93,6 +93,13 @@ class TestMailLDA < TestBase
     verify_no_errors_in_logfile(log)
   end
 
+  def test_message=()
+    m = Mail::Message.new
+    lda, log = new_lda
+    assert_same(m, lda.message = m)
+    assert_same(m, lda.message)
+  end
+
   def process_boilerplate(nolog = false)
     log = scratch_filename("process-log") unless nolog
     log ||= nil
@@ -266,8 +273,8 @@ class TestMailLDA < TestBase
     }
     assert_equal("pipe to #{command.inspect}", e.message)
 
-    assert(file_contains\
-	   (log, /\bAction: pipe to #{Regexp::escape(command.inspect)}/))
+    assert(file_contains(log,
+                /\bAction: pipe to #{Regexp::escape(command.inspect)}/))
     verify_no_errors_in_logfile(log)
   end
 

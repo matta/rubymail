@@ -97,7 +97,7 @@ class TestRDeliver < TestBase
     assert_equal(75 << 8, $?)
     catastrophic = File.join(home, 'CATASTROPHIC_DELIVERY_FAILURE')
     assert(test(?e, catastrophic))
-    assert(file_contains(catastrophic, /No such file to load/))
+    assert(file_contains(catastrophic, /Errno::ENOENT/))
 
     temp = config
     temp ||= '.rdeliver'
@@ -110,7 +110,7 @@ class TestRDeliver < TestBase
     assert_equal(75 << 8, $?)
     catastrophic = File.join(home, 'CATASTROPHIC_DELIVERY_FAILURE')
     assert(test(?e, catastrophic))
-    assert(file_contains(catastrophic, /No such file to load/))
+    assert(file_contains(catastrophic, /Errno::ENOENT/))
     assert(file_contains(catastrophic,
 			 Regexp.escape(File.join(home, '.rdeliver'))))
   end
@@ -124,9 +124,14 @@ class TestRDeliver < TestBase
   end
 
   def test_successful_deliver
-    config = <<-EOF
-    $lda.save('INBOX')
-    EOF
+    config_file = scratch_filename('config')
+    File.open(config_file, 'w') { |f|
+      f.puts <<EOF
+def main
+  lda.save('INBOX')
+end
+EOF
+    }
 
     message = <<-EOF
     From: bob@example.net
@@ -137,16 +142,15 @@ class TestRDeliver < TestBase
     EOF
 
     log = scratch_filename('log')
-    string_as_file(config) { |config_file|
-      command = format("'%s' '%s' -I '%s' -l '%s' '%s'",
-		       ruby_program, script, Dir.getwd, log, config_file.path)
-      IO.popen(command, 'w') { |io|
-	message.each_line { |line|
-	  line = line.sub(/^\s+/, '')
-	  io.puts(line)
-	}
+    command = format("'%s' '%s' -I '%s' -l '%s' '%s'",
+                     ruby_program, script, Dir.getwd, log, config_file)
+    IO.popen(command, 'w') { |io|
+      message.each_line { |line|
+        line = line.sub(/^\s+/, '')
+        io.puts(line)
       }
     }
+
     assert_equal(0, $?)
     assert(test(?e, log))
     inbox = File.join(home, 'INBOX')

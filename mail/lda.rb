@@ -213,6 +213,12 @@ module Mail
       @message
     end
 
+    # Sets the message (which should be a Mail::Message object) that
+    # we're delivering.
+    def message=(message)
+      @message = message
+    end
+
     # Return the header of the message as a <tt>Mail::Header</tt> object.
     # This is short hand for <tt>lda.message.header</tt>.
     #
@@ -220,7 +226,7 @@ module Mail
     def header
       @message.header
     end
-    
+
     # Return the body of the message as an array of strings.  This is
     # short hand for <tt>lda.message.body</tt>.
     #

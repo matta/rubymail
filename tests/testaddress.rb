@@ -12,6 +12,12 @@ require 'mail/address'
 
 class TestMailAddress < TestBase
 
+  def domain_optional
+    # Set to true for tests that include addresses without a domain
+    # portion.
+    false
+  end
+
   def method_list
     [:display_name, :name, :address, :comments,
       :format, :domain, :local]
@@ -79,7 +85,8 @@ class TestMailAddress < TestBase
     }
     expected_results = testcase[1]
     assert_instance_of(Array, expected_results)
-    assert_equal(expected_results.length, results.length)
+    assert_equal(expected_results.length, results.length,
+		 "results array wrong length, got #{results.inspect}")
 
     results.each_with_index { |address, i|
       assert_instance_of(Hash, expected_results[i])
@@ -227,7 +234,26 @@ class TestMailAddress < TestBase
       ] ]
 
     validate_case\
+    ['A Group:a@b.c,d@e.f;',
+      [ { :name => nil, :display_name => nil, :comments => nil,
+	  :local => 'a', :domain => 'b.c', :format  => 'a@b.c',
+	  :address => 'a@b.c' },
+	{ :name => nil, :display_name => nil, :comments => nil,
+	  :local => 'd', :domain => 'e.f', :format  => 'd@e.f',
+	  :address => 'd@e.f' } ] ]
+
+    validate_case\
     ["A Group(Some people)\r\n     :Chris Jones <c@(Chris's host.)public.example>,\r\n         joe@example.org",
+      [ { :name => 'Chris Jones',
+	  :display_name => 'Chris Jones',
+	  :address => 'c@public.example',
+	  :comments => ['Chris\'s host.'],
+	  :domain => 'public.example',
+	  :local => 'c',
+	  :format => 'Chris Jones <c@public.example> (Chris\'s host.)' } ] ]
+
+    validate_case\
+    ["A Group(Some people)\r\n     :Chris Jones <c@(Chris's host.)public.example>,\r\n         joe@example.org;",
       [ { :name => 'Chris Jones',
 	  :display_name => 'Chris Jones',
 	  :address => 'c@public.example',
@@ -363,16 +389,28 @@ class TestMailAddress < TestBase
           :address => 'tibbs@uh.edu',
           :format => '"Jason @ Tibbitts" <tibbs@uh.edu>' } ] ]
 
-    # FIXME: re enable this once parser is re-written
-#     validate_case\
-#     ['tibbs@uh.edu Jason Tibbitts',
-#       [ { :name => nil,
-#           :display_name => nil,
-#           :domain => 'uh.edu',
-#           :local => 'tibbs',
-#           :comments => nil,
-#           :address => 'tibbs@uh.edu',
-#           :format => 'tibbs@uh.edu' } ] ]
+    # Majordomo II parses all of these with an error.  We have deleted
+    # some of the tests since when they are actually legal.
+    validate_case ['tibbs@uh.edu Jason Tibbitts', [] ]
+    validate_case ['@uh.edu', [] ] # Can't start with @
+    validate_case ['J <tibbs>', [] ] # Not FQDN
+    validate_case ['<tibbs Da Man', [] ] # Unbalanced
+    validate_case ['Jason <tibbs>>', [] ] # Unbalanced
+    validate_case ['tibbs, nobody', [] ] # Multiple addresses not allowed
+    validate_case ['tibbs@.hpc', [] ] # Illegal @.
+    validate_case ['<a@b>@c', [] ] # @ illegal in phrase
+    validate_case ['<a@>', [] ]	# No hostname
+    validate_case ['<a@b>.abc', [] ] # >. illegal
+    validate_case ['<a@b> blah <d@e>', [] ] # Two routes illegal
+    validate_case ['<tibbs<tib@a>@hpc.uh.edu>', [] ] # Nested routes illegal
+    validate_case ['[<tibbs@hpc.uh.edu>]', [] ]	# Enclosed in []
+    validate_case ['<a@b.cd> Me [blurfl] U', [] ] # Domain literals illegal in comment
+    validate_case ['A B @ C <a@b.c>', [] ] # @ not legal in comment
+    validate_case ['blah . tibbs@', [] ] # Unquoted . not legal in comment
+    validate_case ['tibbs@hpc.uh.edu.', [] ] # Address ends with a dot
+    validate_case ['sina.hpc.uh.edu', [] ] # No local-part@
+    validate_case ['tibbs@@math.uh.edu', [] ] # Two @s next to each other
+    validate_case ['tibbs@math@uh.edu', [] ] # Two @s, not next to each other
   end
 
   def test_mailtools_suite()
@@ -541,15 +579,17 @@ class TestMailAddress < TestBase
 	  :local => 'Graham.Barr',
 	  :format => 'Graham.Barr@tiuk.ti.com' } ] ]
 
-    validate_case\
-    ['a909937 (Graham Barr          (0004 bodg))',
-      [ { :name => 'Graham Barr (0004 bodg)',
-	  :display_name => nil,
-	  :address => 'a909937',
-	  :comments => ['Graham Barr (0004 bodg)'],
-	  :domain => nil,
-	  :local => 'a909937',
-	  :format => 'a909937 (Graham Barr \(0004 bodg\))' } ] ]
+    if domain_optional
+      validate_case\
+      ['a909937 (Graham Barr          (0004 bodg))',
+	[ { :name => 'Graham Barr (0004 bodg)',
+	    :display_name => nil,
+	    :address => 'a909937',
+	    :comments => ['Graham Barr (0004 bodg)'],
+	    :domain => nil,
+	    :local => 'a909937',
+	    :format => 'a909937 (Graham Barr \(0004 bodg\))' } ] ]
+    end
 
     validate_case\
     ['david d `zoo\' zuhn <zoo@aggregate.com>',
@@ -595,6 +635,27 @@ class TestMailAddress < TestBase
   end
 
   def test_misc_addresses()
+
+    # Make sure that parsing empty stuff works
+    assert_equal([], Mail::Address.parse(nil))
+    assert_equal([], Mail::Address.parse(""))
+    assert_equal([], Mail::Address.parse(" "))
+    assert_equal([], Mail::Address.parse("\t"))
+    assert_equal([], Mail::Address.parse("\n"))
+    assert_equal([], Mail::Address.parse("\r"))
+
+    # From a bogus header I saw sent to ruby-talk
+    validate_case([' ruby-talk@ruby-lang.org (ruby-talk ML),
+	<ruby-talk ML <ruby-talk@ruby-lang.org>>',
+                    [ { :name => 'ruby-talk ML',
+                        :display_name => nil,
+                        :comments => [ 'ruby-talk ML' ],
+                        :domain => 'ruby-lang.org',
+                        :local => 'ruby-talk',
+			:address => 'ruby-talk@ruby-lang.org',
+                        :format => 'ruby-talk@ruby-lang.org (ruby-talk ML)' }
+                    ] ])
+
     # From Python address parsing bug list.  This is valid according
     # to RFC2822.
     validate_case(['Amazon.com <delivers-news2@amazon.com>',
@@ -631,17 +692,9 @@ class TestMailAddress < TestBase
 	  :local => 'mailto:rfc',
 	  :format => '"mailto:rfc"@monkeys.test' } ] ]
 
-    # An unquoted mailto:rfc will end up having the mailto: portion
-    # discarded as a group name.
-    validate_case\
-    ['mailto:rfc@monkeys.test',
-      [ { :name => nil,
-	  :display_name => nil,
-	  :address => 'rfc@monkeys.test',
-	  :comments => nil,
-	  :domain => 'monkeys.test',
-	  :local => 'rfc',
-	  :format => 'rfc@monkeys.test' } ] ]
+    # An unquoted mailto:rfc will end up being detected as an invalid
+    # group display name.
+    validate_case ['mailto:rfc@monkeys.test', [] ]
 
     # From gnu.emacs.help
     # Date: 24 Nov 2001 15:37:23 -0500
@@ -745,7 +798,7 @@ class TestMailAddress < TestBase
 	  :format => '<test@[dom\]ai\\\\n]>' } ] ]
 
     validate_case\
-    ["Bob \r<@machine.tld  \r,\n [obsdomain]\t:\ntest @ [domain]>",
+    ["Bob \r<@machine.tld  \r,\n,,, @[obsdomain],@foo\t:\ntest @ [domain]>",
       [ { :name => 'Bob',
 	  :display_name => 'Bob',
 	  :address => 'test@[domain]',
@@ -883,28 +936,17 @@ class TestMailAddress < TestBase
 
   def test_out_of_spec()
 
-    validate_case\
-    ['bodg fred@tiuk.ti.com',
-      [ { :name => nil,
-	  :display_name => nil,
-	  :address => 'bodg fred@tiuk.ti.com',
-	  :comments => nil,
-	  :domain => 'tiuk.ti.com',
-	  :local => 'bodg fred',
-	  :format => '"bodg fred"@tiuk.ti.com' } ] ]
-
-    validate_case\
-    ['<Investor Alert@example.com>',
-      [ { :name => nil,
-	  :display_name => nil,
-	  :address => 'Investor Alert@example.com',
-	  :comments => nil,
+    validate_case ['bodg fred@tiuk.ti.com', [] ]
+    validate_case ['(comment) bodg fred@example.net, matt@example.com',
+      [ { :name => nil, :display_name => nil, :comments => nil,
+	  :address => 'matt@example.com',
 	  :domain => 'example.com',
-	  :local => 'Investor Alert',
-	  :format => '"Investor Alert"@example.com' } ] ]
+	  :local => 'matt',
+	  :format => 'matt@example.com' } ] ]
 
-    validate_case\
-    ['"" <bob@example.com>',
+    validate_case ['<Investor Alert@example.com>', [] ]
+
+    validate_case ['"" <bob@example.com>',
       [ { :name => nil,
 	  :display_name => nil,
 	  :address => 'bob@example.com',
@@ -921,39 +963,44 @@ class TestMailAddress < TestBase
     ['@example.com',
       [ ] ]
 
-    validate_case\
-    ['bob',
-      [ { :name => nil,
-	  :display_name => nil,
-	  :address => 'bob',
-	  :comments => nil,
-	  :domain => nil,
-	  :local => 'bob',
-	  :format => 'bob' } ] ]
+    if domain_optional
+      validate_case\
+      ['bob',
+	[ { :name => nil,
+	    :display_name => nil,
+	    :address => 'bob',
+	    :comments => nil,
+	    :domain => nil,
+	    :local => 'bob',
+	    :format => 'bob' } ] ]
 
-    validate_case\
-    ['bob,sally, sam',
-      [ { :name => nil,
-	  :display_name => nil,
-	  :address => 'bob',
-	  :comments => nil,
-	  :domain => nil,
-	  :local => 'bob',
-	  :format => 'bob' },
-	{ :name => nil,
-	  :display_name => nil,
-	  :address => 'sally',
-	  :comments => nil,
-	  :domain => nil,
-	  :local => 'sally',
-	  :format => 'sally' },
-	{ :name => nil,
-	  :display_name => nil,
-	  :address => 'sam',
-	  :comments => nil,
-	  :domain => nil,
-	  :local => 'sam',
-	  :format => 'sam' }] ]
+      validate_case\
+      ['bob,sally, sam',
+	[ { :name => nil,
+	    :display_name => nil,
+	    :address => 'bob',
+	    :comments => nil,
+	    :domain => nil,
+	    :local => 'bob',
+	    :format => 'bob' },
+	  { :name => nil,
+	    :display_name => nil,
+	    :address => 'sally',
+	    :comments => nil,
+	    :domain => nil,
+	    :local => 'sally',
+	    :format => 'sally' },
+	  { :name => nil,
+	    :display_name => nil,
+	    :address => 'sam',
+	    :comments => nil,
+	    :domain => nil,
+	    :local => 'sam',
+	    :format => 'sam' }] ]
+    else
+      validate_case [ 'bob', [] ]
+      validate_case [ 'Bobby, sally,sam', [] ]
+    end
 
     validate_case(['Undisclosed <>', []])
     validate_case(['"Mensagem Automatica do Terra" <>', []])
@@ -996,7 +1043,7 @@ class TestMailAddress < TestBase
 	  end
 	}
       }
-      bad
+      raise "shortest failure is #{bad.inspect}"
     end
   end
 
@@ -1007,7 +1054,11 @@ class TestMailAddress < TestBase
     Mail::Address.parse("j732[S\031\022\000\fuh\003Ye<2psd\005#1L=Hw*c\0247\006\aE\fXJ\026;\026\032zAAgpCFq+\010")
     Mail::Address.parse("\016o7=\024d^\001|h<,#\026~(<oS\005 f<u\022u+4\"\020d \023h\004)\036\016\023YY0\n]W]'\025S\t\035")
     Mail::Address.parse("<")
-
+    Mail::Address.parse("J.:")
+#     find_shortest_failure("\276\231J.^\351I:\2564") { |s|
+#       Mail::Address.parse(s)
+#     }
+    
     0.upto(25) {
       specials = ',;\\()":@<>'
       strings = [(0..rand(255)).collect {rand(127).chr}.to_s,

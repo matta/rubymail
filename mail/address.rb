@@ -30,6 +30,8 @@ module Mail
     # See mail/deliver.rb
     def initialize(string = nil)
 
+      @local = @domain = @comments = @display_name = nil
+
       if string.kind_of?(String)
 	addrs = Address.parse(string)
 	if addrs.length > 0
@@ -37,8 +39,6 @@ module Mail
 	  @domain = addrs[0].domain
 	  @comments = addrs[0].comments
 	  @display_name = addrs[0].display_name
-        else
-          @local = @domain = @comments = @display_name = nil
         end
       else
 	raise ArgumentError unless string.nil?
@@ -202,289 +202,482 @@ module Mail
       [display_name, address, comments].compact.join(' ')
     end
 
-    # Given a string, this function attempts to extract mailing
-    # addresses from it.  The function returns an array of
-    # Mail::Address objects.  A malformed input string will not
-    # generate an exception.  Instead, the array returned will be
-    # empty.
-    #
-    # The string is expected to be in a valid format as documented in
-    # RFC2822's mailbox-list grammar.  Some commonly seen invalid
-    # input is also handled correctly.  This will work for lists of
-    # addresses in the <tt>To:</tt>, <tt>From:</tt>, etc. headers in
-    # email.
-    def Address.parse(string)
-      require "English"
+    # This class provides a facility to parse a string containing one
+    # or more RFC2822 addresses into an array of Mail::Address
+    # objects.  You can use it directly, but it is more conveniently
+    # used with the Mail::Address.parse method.
+    class Parser
 
-      puts "\nparse #{string.inspect}" if $DEBUG
+      # Create a Mail::Address::Parser object that will parse
+      # +string+.  See also the Mail::Address.parse method.
+      def initialize(string)
+        @string = string
+      end
 
-      token_list = tokenize(string)
-      puts "token_list #{token_list.inspect}" if $DEBUG
-
-      # Split up each address in the mailbox list
-      mailboxes = []
-      commas = []
-      in_angle = false
-      token_list.each_with_index { |token, i|
-	if token[0] == :special
-	  case token[1]
-	  when "<"
-	    in_angle = true
-	  when ">"
-	    in_angle = false
-	  when ","
-	    commas.push(i) unless in_angle
-	  end
-	end
-      }
-      puts "commas #{commas.inspect}" if $DEBUG
-      offset = 0
-      commas.each { |i|
-	mailboxes.push(token_list.slice(0, i - offset))
-	token_list.slice!(0, i - offset + 1)
-	offset += i - offset + 1
-      }
-      mailboxes.push(token_list)
-
-      puts "mailboxes #{mailboxes.inspect}" if $DEBUG
-
-      results = []
-      mailboxes.each { |tokens|
-	puts "## tokens #{tokens.inspect}" if $DEBUG
-
-	# Find any ":" -- a group name
-	if colon = tokens.index([:special, ':'])
-	  angle = tokens.index([:special, '<'])
-	  if angle.nil? || angle > colon
-	    tokens.slice!(0 .. tokens.index([:special, ':']))
-	  end
-	end
-	# FIXME: perhaps move this into the above if statement?
-	if tokens.index([:special, ";"])
-	  tokens.slice!(tokens.index([:special, ";"]))
-	end
-
-	# Strip comments
-	comments = []
-	tokens.delete_if { |token|
-	  if token[0] == :comment
-	    comments.push(token[1])
-	    true
-	  end
+      # This function attempts to extract mailing addresses from the
+      # string passed to #new.  The function returns an array of
+      # Mail::Address objects.  A malformed input string will not
+      # generate an exception.  Instead, the array returned will
+      # simply not contained the malformed addresses.
+      #
+      # The string is expected to be in a valid format as documented
+      # in RFC2822's mailbox-list grammar.  This will work for lists
+      # of addresses in the <tt>To:</tt>, <tt>From:</tt>, etc. headers
+      # in email.
+      def parse
+        @lexemes = []
+	@tokens = []
+	@addresses = []
+	@errors = 0
+	new_address
+        get
+        address_list
+	reset_errors
+	@addresses.delete_if { |a|
+	  !a.local || !a.domain
 	}
-	comments = nil if comments.empty?
+      end
 
-	puts "comments #{comments.inspect}" if $DEBUG
-	puts "tokens #{tokens.inspect}" if $DEBUG
+      private
 
-	# Find any "<"
-	angle_index = tokens.index([:special, "<"])
+      SYM_ATOM = :atom
+      SYM_QTEXT = :qtext
+      SYM_COMMA = :comma
+      SYM_LESS_THAN = :less_than
+      SYM_GREATER_THAN = :greater_than
+      SYM_AT_SIGN = :at_sign
+      SYM_PERIOD = :period
+      SYM_COLON = :colon
+      SYM_SEMI_COLON = :semi_colon
+      SYM_DOMAIN_LITERAL = :domain_literal
 
-	unless angle_index.nil?
-	  # new style name-addr = [display-name] angle-addr
-	  if angle_index > 0
-	    display_name = join_tokens_whitespace(tokens[0, angle_index])
-	  else
-	    display_name = nil
-	  end
-	  tokens = tokens[angle_index..-1]
-
-	  puts "display_name #{display_name.inspect}" if $DEBUG
-	  puts "tokens #{tokens.inspect}" if $DEBUG
-
-	  # Find the ">"
-	  angle_index = tokens.index([:special, ">"]) || tokens.length - 1
-
-	  address = tokens[1, angle_index - 1]
-	  tokens = tokens[angle_index + 1 .. -1]
-
-	  unless address.nil?
-	    if colon = address.rindex([:special, ':'])
-	      puts "found obs-domain #{address.inspect}" if $DEBUG
-	      address.slice!(0..colon)
-	    end
-	  end
-	  local, domain = split_address(address)
-	else
-	  # New style addr-spec = local-part @ domain
-	  local, domain = split_address(tokens)
+      def reset_errors
+	if @errors > 0
+	  @addresses.pop
+	  @errors = 0
 	end
+      end
 
-	unless local.nil?
-	  local = join_tokens(local)
-	  unless local == ''
-	    puts "new address #{local.inspect} #{domain.inspect} #{comments.inspect}" if $DEBUG
-	    ret = Mail::Address.new
-	    ret.local = local
-	    ret.domain = join_tokens(domain)
-	    ret.display_name = display_name
-	    ret.comments = comments
-	    results.push(ret)
-	  end
-	end
-      }
-      puts "parsed #{results.inspect}" if $DEBUG
-      return results
-    end
+      def new_address
+	reset_errors
+	@addresses.push(Address.new)
+      end
 
-    private
-
-    # Turn a string into an array of tokens.  Token types are :atom,
-    # :qtext, :domain_literal, and :special.  Each array element
-    # consists of a sub-array pair [token, string].
-    def Address.tokenize(string)
-      puts ">tokenize #{string.inspect}" if $DEBUG
-      words = []
-      loop {
-	case string
-	when ""			# the end
-	  break
-	when /\A[\r\n\t ]+/m	# whitespace
-	  puts "see whitespace #{$MATCH.inspect} #{$PREMATCH.inspect}" if $DEBUG
-	  string = $POSTMATCH
-	when /\A\(/m # comment
-	  puts "see comment #{string.inspect}" if $DEBUG
-          string = tokenize_comment(string, words)
-	when /\A[\w!$%&\'*+\/=?^_\`{\}|~#-]+/m
-	  puts "see atom" if $DEBUG
-	  string = $POSTMATCH
-	  words.push([:atom, $MATCH])
-	when /\A""/
-	  puts "see empty double quote" if $DEBUG
-	  string = $POSTMATCH
-	when /\A"(.*?([^\\]|\\\\))"/m
-	  puts "see quote" if $DEBUG
-	  string = $POSTMATCH
-	  words.push([:qtext, $1.gsub(/\\(.)/, '\1')]) unless $1.nil?
-	when /\A(\[.*?([^\\]|\\\\)\])/m
-	  puts "see domain literal #{$1.inspect}" if $DEBUG
-	  string = $POSTMATCH
-	  words.push([:domain_literal, $1.gsub(/\\(.)/, '\1')])
-	when /\A[<>@,:;\.]/m
-	  puts "see literal" if $DEBUG
-	  words.push([:special, $MATCH])
-	  string = $POSTMATCH
-	when /\A./m
-	  puts "see weirdness #{$MATCH.inspect}" if $DEBUG
-	  string = $POSTMATCH
-	end
-	puts "last token #{words[-1].inspect}" if $DEBUG
-	puts "string #{string.inspect}" if $DEBUG
-      }
-      puts "<tokenize #{words.inspect}" if $DEBUG
-      words
-    end
-
-    def Address.tokenize_comment(string, words)
-      depth = 0
-      comment = ''
-      catch(:done) {
-        while string =~ /\A(\(([^\(\)\\]|\\.)*)/m
-          string = $POSTMATCH
-          comment += $1
-          depth += 1
-          puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-          while string =~ /\A(([^\(\)\\]|\\.)*\))/m
-            string = $POSTMATCH
-            comment += $1
-            depth -= 1
-            puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-            throw :done if depth == 0
-            if string =~ /\A(([^\(\)\\]|\\.)+)/
-              string = $POSTMATCH
-              comment += $1
-              puts "depth #{depth}, comment now #{comment.inspect}, string now #{string.inspect}" if $DEBUG
-            end
-          end
-        end
-      }
-      words.push([:comment,
-                   comment.gsub(/[\r\n\t ]+/m, ' ').
-                   sub(/\A\((.*)\)$/m, '\1').
-                   gsub(/\\(.)/, '\1')])
-      string
-    end
-
-    # Delete whitespace tokens from the beginning of array
-    # and return it.
-    def Address.delete_whitespace_tokens(tokens)
-      seen_non_whitespace = false
-      tokens.delete_if { |token|
-        if seen_non_whitespace || token[0] != :whitespace
-          seen_non_whitespace = true
-          false
-        else
-          true
-        end
-      }
-    end
-
-    # Join a token list into a string without ignoring the whitespace.
-    def Address.join_tokens_whitespace(tokens)
-      joined = ''
-      unless tokens.nil?
-        tokens = delete_whitespace_tokens(tokens.dup).reverse
-        tokens = delete_whitespace_tokens(tokens).reverse
+      # Get the text that has been saved up to this point.
+      def get_text
+        text = ''
         sep = ''
-        tokens.each { |token|
-          if token[0] == :whitespace
-            if token[1] !~ /[\r\n]/
-              sep = token[1]
-            end
+        @lexemes.each { |lexeme|
+          if lexeme == '.'
+            text << lexeme
+            sep = ''
           else
-            if token[0] == :special && (token[1] == '@' || token[1] == '.')
-              joined << token[1]
-              sep = ''
-            else
-              joined << sep
-              joined << token[1]
-              sep = ' '
-            end
+            text << sep
+            text << lexeme
+            sep = ' '
           end
         }
+	@lexemes = []
+        text
       end
-      joined
-    end
 
-    # Join a token list into a string.  As RFC2822 requires, the
-    # special tokens . and @ will have no surrounding white space, all
-    # other tokens will have a single space.
-    def Address.join_tokens(tokens)
-      joined = ''
-      unless tokens.nil?
-        sep = ''
-        tokens.each { |token|
-          unless token[0] == :whitespace
-            if token[0] == :special && (token[1] == '@' || token[1] == '.')
-              joined << token[1]
-              sep = ''
-            else
-              joined << sep
-              joined << token[1]
-              sep = ' '
-            end
-          end
-        }
+      # Save the current lexeme away for later retrieval with
+      # get_text.
+      def save_text
+        @lexemes << @lexeme
       end
-      joined
-    end
 
-    # Split a token list holding an addr-spec (local-part @ domain)
-    # into the local part and the domain part.
-    def Address.split_address(tokens)
-      if tokens.nil?
-	[[],[]]
-      else
-	at = tokens.rindex([:special, '@'])
-	case at
-	when nil
-	  [tokens, []]
-	when 0
-	  [[], tokens[1..-1]]
+      # Parse this:
+      # address_list = ([address] SYNC ",") {[address] SYNC "," } [address] .
+      def address_list
+	if @sym == SYM_ATOM ||
+	    @sym == SYM_QTEXT ||
+	    @sym == SYM_LESS_THAN
+	  address
+	end
+	sync(SYM_COMMA)
+	return if @sym.nil?
+	expect(SYM_COMMA)
+	new_address
+        while @sym == SYM_ATOM ||
+            @sym == SYM_QTEXT ||
+            @sym == SYM_COMMA ||
+            @sym == SYM_LESS_THAN
+	  if @sym == SYM_ATOM || @sym == SYM_QTEXT || @sym == SYM_LESS_THAN
+	    address
+	  end
+	  sync(SYM_COMMA)
+	  return if @sym.nil?
+	  expect(SYM_COMMA)
+	  new_address
+        end
+        if @sym == SYM_ATOM || @sym == SYM_QTEXT || @sym == SYM_LESS_THAN
+          address
+        end
+      end
+
+      # Parses ahead through a local-part or display-name until no
+      # longer looking at a word or "." and returns the next symbol.
+      def address_lookahead
+	lookahead = []
+	while @sym == SYM_ATOM || @sym == SYM_QTEXT || @sym == SYM_PERIOD
+	  lookahead.push([@sym, @lexeme])
+	  get
+	end
+	retval = @sym
+	putback(@sym, @lexeme)
+	putback_array(lookahead)
+	get
+	retval
+      end
+
+      # Parse this:
+      # address = mailbox | group
+      def address
+        # At this point we could be looking at a display-name, angle
+        # addr, or local-part.  If looking at a local-part, it could
+        # actually be a display-name, according to the following:
+        #
+        # local-part '@' -> it is a local part of a local-part @ domain
+        # local-part '<' -> it is a display-name of a mailbox
+        # local-part ':' -> it is a display-name of a group
+        # display-name '<' -> it is a mailbox display name
+        # display-name ':' -> it is a group display name
+        #
+
+	# set lookahead to '@' '<' or ':' (or another value for
+	# invalid input)
+	lookahead = address_lookahead
+
+	if lookahead == SYM_COLON
+	  group
 	else
-	  [tokens[0..at-1], tokens[at+1..-1]]
+	  mailbox(lookahead)
 	end
       end
+
+      # Parse this:
+      #  mailbox = angleAddr |
+      #            word {word | "."} angleAddr |
+      #            word {"." word} "@" domain .
+      #
+      # lookahead will be set to the return value of
+      # address_lookahead, which will be '@' or '<' (or another value
+      # for invalid input)
+      def mailbox(lookahead)
+        if @sym == SYM_LESS_THAN
+          angle_addr
+        elsif lookahead == SYM_LESS_THAN
+          word
+          while @sym == SYM_ATOM || @sym == SYM_QTEXT || @sym == SYM_PERIOD
+            if @sym == SYM_ATOM || @sym == SYM_QTEXT
+              word
+            else
+	      save_text
+              get
+            end
+          end
+	  @addresses.last.display_name = get_text
+          angle_addr
+        else
+          word
+          while @sym == SYM_PERIOD
+            save_text
+            get
+            word
+          end
+	  @addresses.last.local = get_text
+          expect(SYM_AT_SIGN)
+          domain
+        end
+      end
+
+      # Parse this:
+      #   group = word {word | "."} SYNC ":" [mailbox_list] SYNC ";"
+      def group
+        word
+        while @sym == SYM_ATOM || @sym == SYM_QTEXT || @sym == SYM_PERIOD
+          if @sym == SYM_ATOM || @sym == SYM_QTEXT
+            word
+          else
+	    save_text
+            get
+          end
+        end
+        sync(SYM_COLON)
+	expect(SYM_COLON)
+	get_text		# throw away group name
+	@addresses.last.comments = nil
+        if @sym == SYM_ATOM || @sym == SYM_QTEXT ||
+	    @sym == SYM_COMMA || @sym == SYM_LESS_THAN
+          mailbox_list
+        end
+        sync(SYM_SEMI_COLON)
+	expect(SYM_SEMI_COLON)
+      end
+
+      # Parse this:
+      #   word = atom | quotedString
+      def word
+        if @sym == SYM_ATOM || @sym == SYM_QTEXT
+          save_text
+          get
+        else
+	  error "expected word, got #{@sym.inspect}"
+	end
+      end
+
+      # Parse a mailbox list.
+      def mailbox_list
+	mailbox(address_lookahead)
+	while @sym == SYM_COMMA
+	  get
+	  new_address
+	  mailbox(address_lookahead)
+	end
+      end
+
+      # Parse this:
+      #   angleAddr = SYNC "<" [obsRoute] addrSpec SYNC ">"
+      def angle_addr
+        expect(SYM_LESS_THAN)
+        if @sym == SYM_AT_SIGN
+          obs_route
+        end
+        addr_spec
+        expect(SYM_GREATER_THAN)
+      end
+
+      # Parse this:
+      #   domain = domainLiteral | obsDomain
+      def domain
+        if @sym == SYM_DOMAIN_LITERAL
+	  save_text
+	  @addresses.last.domain = get_text
+	  get
+        elsif @sym == SYM_ATOM
+          obs_domain
+	  @addresses.last.domain = get_text
+	else
+	  error "expected start of domain, got #{@sym.inspect}"
+	end
+      end
+
+      # Parse this:
+      #   addrSpec = localPart "@" domain
+      def addr_spec
+        local_part
+        expect(SYM_AT_SIGN)
+        domain
+      end
+
+      # Parse this:
+      #   local_part = word *( "." word )
+      def local_part
+        word
+        while @sym == SYM_PERIOD
+	  save_text
+          get
+          word
+        end
+	@addresses.last.local = get_text
+      end
+
+      # Parse this:
+      #   obs_domain =  atom  *( "."  atom ) .
+      def obs_domain
+        expect_save(SYM_ATOM)
+        while @sym == SYM_PERIOD
+	  save_text
+          get
+          expect_save(SYM_ATOM)
+        end
+      end
+
+      # Parse this:
+      #   obs_route = obs_domain_list ":"
+      def obs_route
+        obs_domain_list
+        expect(SYM_COLON)
+      end
+
+      # Parse this:
+      #   obs_domain_list = "@" domain *( *( "," ) "@" domain )
+      def obs_domain_list
+        expect(SYM_AT_SIGN)
+        domain
+        while @sym == SYM_COMMA || @sym == SYM_AT_SIGN
+          while @sym == SYM_COMMA
+            get
+          end
+          expect(SYM_AT_SIGN)
+          domain
+        end
+      end
+
+      # Put a token back into the input stream.  This token will be
+      # retrieved by the next call to get.
+      def putback(sym, lexeme)
+	@tokens.push([sym, lexeme])
+      end
+
+      # Put back an array of tokens into the input stream.
+      def putback_array(a)
+	a.reverse_each { |e|
+	  putback(*e)
+	}
+      end
+
+      # Get a single token from the string or from the @tokens array
+      # if somebody used putback.
+      def get
+	unless @tokens.empty?
+	  @sym, @lexeme = @tokens.pop
+	else
+	  get_tokenize
+	end
+      end
+
+      # Get a single token from the string
+      def get_tokenize
+        @lexeme = nil
+        loop {
+          case @string
+	  when nil		# the end
+	    @sym = nil
+	    break
+          when ""               # the end
+            @sym = nil
+            break
+          when /\A[\r\n\t ]+/m	# skip whitespace
+            @string = $'
+          when /\A\(/m          # skip comment
+            comment
+          when /\A""/           # skip empty quoted text
+            @string = $'
+          when /\A[\w!$%&\'*+\/=?^_\`{\}|~#-]+/m
+            @string = $'
+            @sym = SYM_ATOM
+            break
+          when /\A"(.*?([^\\]|\\\\))"/m
+            @string = $'
+            @sym = SYM_QTEXT
+            @lexeme = $1.gsub(/\\(.)/, '\1')
+            break
+          when /\A</
+            @string = $'
+            @sym = SYM_LESS_THAN
+            break
+          when /\A>/
+            @string = $'
+            @sym = SYM_GREATER_THAN
+            break
+          when /\A@/
+            @string = $'
+            @sym = SYM_AT_SIGN
+            break
+          when /\A,/
+            @string = $'
+            @sym = SYM_COMMA
+            break
+          when /\A:/
+            @string = $'
+            @sym = SYM_COLON
+            break
+          when /\A;/
+            @string = $'
+            @sym = SYM_SEMI_COLON
+            break
+          when /\A\./
+            @string = $'
+            @sym = SYM_PERIOD
+            break
+	  when /\A(\[.*?([^\\]|\\\\)\])/m
+	    @string = $'
+	    @sym = SYM_DOMAIN_LITERAL
+	    @lexeme = $1.gsub(/(^|[^\\])[\r\n\t ]+/, '\1').gsub(/\\(.)/, '\1')
+	    break
+          when /\A./
+            @string = $'	# garbage
+	    error('garbage character in string')
+          else
+            raise "internal error, @string is #{@string.inspect}"
+          end
+        }
+        if @sym
+          @lexeme ||= $&
+        end
+      end
+
+      def comment
+        depth = 0
+        comment = ''
+        catch(:done) {
+          while @string =~ /\A(\(([^\(\)\\]|\\.)*)/m
+            @string = $'
+            comment += $1
+            depth += 1
+            while @string =~ /\A(([^\(\)\\]|\\.)*\))/m
+              @string = $'
+              comment += $1
+              depth -= 1
+              throw :done if depth == 0
+              if @string =~ /\A(([^\(\)\\]|\\.)+)/
+                @string = $'
+                comment += $1
+              end
+            end
+          end
+        }
+        comment = comment.gsub(/[\r\n\t ]+/m, ' ').
+          sub(/\A\((.*)\)$/m, '\1').
+          gsub(/\\(.)/, '\1')
+	@addresses.last.comments =
+	  (@addresses.last.comments || []) + [comment]
+      end
+
+      def expect(token)
+        if @sym == token
+          get
+	else
+	  error("expected #{token.inspect} but got #{@sym.inspect}")
+	end
+      end
+
+      def expect_save(token)
+        if @sym == token
+	  save_text
+	end
+	expect(token)
+      end
+
+      def sync(token)
+        while @sym && @sym != token
+	  error "expected #{token.inspect} but got #{@sym.inspect}"
+          get
+        end
+      end
+
+      def error(s)
+	@errors += 1
+      end
     end
+
+    # Given a string, this function attempts to extract mailing
+    # addresses from it and returns an array of those addresses.
+    #
+    # This is identical to using a Mail::Address::Parser directly like
+    # this:
+    #
+    #  Mail::Address::Parser.new(string).parse
+    def Address.parse(string)
+      Parser.new(string).parse
+    end
+
   end
+end
+
+if $0 == __FILE__
+  parser = Mail::Address::Parser.new('A Group:a@b.c,d@e.f;')
+  p parser.parse
 end
