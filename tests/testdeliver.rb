@@ -69,11 +69,11 @@ class TestMailDeliver < TestBase
     return mailcount
   end
 
-  def test_deliver_no_each_method()
+  def test_deliver_mbox_no_each_method()
     mailbox = File.join(scratch_dir, "mbox.no_each_method")
 
     assert(!test(?e, mailbox))
-    e = assert_exception(NoMethodError) {
+    e = assert_exception(NO_METHOD_ERROR) {
       deliver_mbox(mailbox, nil)
     }
     assert_not_nil(e)
@@ -82,7 +82,7 @@ class TestMailDeliver < TestBase
     assert(test(?f, mailbox))
     assert(test(?z, mailbox))
     assert_equal(0, validate_mbox(mailbox, nil))
-    e = assert_exception(NoMethodError) {
+    e = assert_exception(NO_METHOD_ERROR) {
       deliver_mbox(mailbox, Object.new)
     }
     assert_not_nil(e)
@@ -92,7 +92,7 @@ class TestMailDeliver < TestBase
     assert_match(/undefined method `each'/, e.message)
   end
 
-  def test_deliver_string_with_from()
+  def test_deliver_mbox_string_with_from()
     mailbox = File.join(scratch_dir, "mbox.string_with_from")
     assert(!test(?e, mailbox))
     string_message =
@@ -100,10 +100,10 @@ class TestMailDeliver < TestBase
     deliver_mbox(mailbox, string_message)
     assert(test(?f, mailbox))
     assert_equal(string_message.length + 2, test(?s, mailbox))
-    assert(1, validate_mbox(mailbox, /^foo$/))
+    assert_equal(1, validate_mbox(mailbox, /^foo$/))
   end
 
-  def test_deliver_string_without_from()
+  def test_deliver_mbox_string_without_from()
     mailbox = File.join(scratch_dir, "mbox.string_without_from")
     assert(!test(?e, mailbox))
     string_message = "X-foo: foo\n\nfoo"
@@ -111,10 +111,10 @@ class TestMailDeliver < TestBase
     assert(test(?f, mailbox))
     assert_equal("From foo@bar  Fri Nov  9 23:00:43 2001\n".length +
 		 string_message.length + 2, test(?s, mailbox))
-    assert(1, validate_mbox(mailbox, /^foo$/))
+    assert_equal(1, validate_mbox(mailbox, /^foo$/))
   end
 
-  def test_deliver_array_with_from()
+  def test_deliver_mbox_array_with_from()
     mailbox = File.join(scratch_dir, "mbox.array_with_from")
     assert(!test(?e, mailbox))
     array_message = [
@@ -125,10 +125,10 @@ class TestMailDeliver < TestBase
     deliver_mbox(mailbox, array_message)
     assert(test(?f, mailbox))
     assert_equal(array_message.join("\n").length + 2, test(?s, mailbox))
-    assert(1, validate_mbox(mailbox, /^foo$/))
+    assert_equal(1, validate_mbox(mailbox, /^foo$/))
   end
 
-  def test_deliver_array_without_from()
+  def test_deliver_mbox_array_without_from()
     mailbox = File.join(scratch_dir, "mbox.array_without_from")
     assert(!test(?e, mailbox))
     array_message = [
@@ -139,10 +139,10 @@ class TestMailDeliver < TestBase
     assert(test(?f, mailbox))
     assert_equal("From baz@bar  Fri Nov  9 23:00:43 2001\n".length + 
 		 array_message.join("\n").length + 2, test(?s, mailbox))
-    assert(1, validate_mbox(mailbox, /^foo$/))
+    assert_equal(1, validate_mbox(mailbox, /^foo$/))
   end
   
-  def test_deliver_complex()
+  def test_deliver_mbox_complex()
     mailbox = File.join(scratch_dir, "mbox.complex")
     obj = Object.new
 
@@ -163,7 +163,7 @@ class TestMailDeliver < TestBase
     deliver_mbox(mailbox, obj)
     assert(test(?f, mailbox))
     assert_equal(296, test(?s, mailbox))
-    assert(2, validate_mbox(mailbox, /^complex body text again$/))
+    assert_equal(2, validate_mbox(mailbox, /^complex body text again$/))
 
     File.open(mailbox) {|f|
       # make sure leading body "From " lines are escaped
@@ -180,6 +180,67 @@ class TestMailDeliver < TestBase
       }
     }
   end
+
+  def test_deliver_pipe_no_each_method()
+    output = File.join(scratch_dir, "pipe.no_each_method")
+    command = "/bin/cat > #{output}"
+
+    assert_equal(false, test(?e, output))
+    e = assert_exception(NO_METHOD_ERROR) {
+      deliver_pipe(command, nil)
+    }
+    assert_not_nil(e)
+    assert_match(/undefined method `each'/, e.message)
+    assert_equal(true, test(?e, output))
+    assert_equal(true, test(?z, output))
+
+    e = assert_exception(NO_METHOD_ERROR) {
+      deliver_pipe(command, Object.new)
+    }
+    assert_not_nil(e)
+    assert_match(/undefined method `each'/, e.message)
+    assert_equal(true, test(?e, output))
+    assert_equal(true, test(?z, output))
+  end
+
+  def test_deliver_pipe_simple()
+    output = File.join(scratch_dir, "pipe.simple")
+    command = "/bin/cat > #{output}"
+
+    message1 = "This is message one."
+    assert_equal(false, test(?e, output))
+    deliver_pipe(command, message1)
+    got = File.open(output).readlines().join('')
+    assert_equal(message1 + "\n", got)
+
+    message2 = %q{This is message two.
+It has some newlines in it.
+And it even ends with one.
+}
+    deliver_pipe(command, message2)
+    got = File.open(output).readlines().join('')
+    assert_equal(message2, got)
+
+    message3 = [ "Line 1", "Line 2", "", "Line 3" ]
+    deliver_pipe(command, message3)
+    got = File.open(output).readlines().join('')
+    assert_equal(message3.join("\n") + "\n", got)
+  end
+
+  def test_deliver_pipe_failed()
+    command = "/bin/sh -c 'exit 7'"
+    deliver_pipe(command, "irrelevant message")
+    assert_equal(7 << 8, $?)
+
+    # now attempt to generate an EPIPE pipe error
+    long_message = []
+    0.upto(5000) {
+      long_message.push("This is a line of text")
+    }
+    deliver_pipe(command, long_message)
+    assert_equal(7 << 8, $?)
+  end
+  
 end
 
 if __FILE__ == $0

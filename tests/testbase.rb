@@ -18,6 +18,13 @@ class TestBase < RUNIT::TestCase
   attr_reader :scratch_dir
   attr_reader :ruby_bin
 
+  # NoMethodError was introduced in ruby 1.7
+  NO_METHOD_ERROR = if RUBY_VERSION >= "1.7"
+		      NoMethodError
+		    else
+		      NameError
+		    end
+
   def cleandir(dir)
     if FileTest.directory?(dir)
       Dir.foreach(dir) { |f|

@@ -10,10 +10,16 @@
 require 'mail/header.rb'
 
 module Mail
+
+  # The Mail::Message provides a way to read a RFC2822 message from an
+  # input stream and manipulate the header and body.
   class Message
 
-    # Create a new Mail::Message.  Input is read if it is not nil.
-    def initialize(input = $<)
+    # Create a new Mail::Message.
+    #
+    # If +input+ is not nil, <tt>input.each_line</tt> will be used to
+    # retrieve the message.
+    def initialize(input)
       @header = Mail::Header.new(input)
       @body = []
       unless input.nil?
@@ -23,22 +29,29 @@ module Mail
       end
     end
 
-    # Returns the body of the message
+    # Returns the body of the message as an array of strings.
+    #
+    # Each string will include a trailing newline (<tt>\n</tt>).
+    #
+    # See also #header.
     def body()
       return @body
     end
 
-    # Returns the Mail::Header object
+    # Returns the Mail::Header object.
+    #
+    # See also #body.
     def header()
       return @header
     end
 
-    # Returns the entire message as a string
+    # Returns the entire message in a single string.
     def to_s()
       s = @header.to_s + "\n" + @body.join('')
     end
 
-    # Iterate over every line of the message
+    # Call the supplied block for each line of the message.  Each line
+    # will contain a trailing newline (<tt>\n</tt>).
     def each()
       @header.to_s.each("\n") {|line|
 	yield line

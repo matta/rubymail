@@ -28,7 +28,7 @@ class TestMailHeader < TestBase
       got_tag, got_header = value
 
       assert_equal(header[index], got_header)
-      assert_equal(Mail::Header.strip_tag(header[index]), expected_stripped)
+      assert_equal(Mail::Header.strip_field_name(header[index]), expected_stripped)
 
       assert_equal(expected_tag, got_tag,
 		   "field #{index} has incorrect name, " +
@@ -38,7 +38,7 @@ class TestMailHeader < TestBase
 		   "field #{index} has incorrect line, " +
 		   "expected #{expected_header.inspect} got " +
 		   "#{got_header.inspect}")
-      assert_equal(expected_stripped, Mail::Header.strip_tag(got_header))
+      assert_equal(expected_stripped, Mail::Header.strip_field_name(got_header))
       assert_equal(header[expected_tag], expected_header)
       assert_equal(expected_stripped, header.get(got_tag))
     }

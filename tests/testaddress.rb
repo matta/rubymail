@@ -881,6 +881,10 @@ class TestMailAddress < TestBase
 
     validate_case(['Undisclosed <>', []])
     validate_case(['"Mensagem Automatica do Terra" <>', []])
+
+    validate_case(["\177", []])
+    validate_case(["\177\177\177", []])
+
   end
 
   def call_fails(arg, &block)
@@ -953,6 +957,44 @@ class TestMailAddress < TestBase
       }
     }
   end
+
+  def test_initialize
+    addr = Mail::Address.new
+    assert_instance_of(Mail::Address, addr)
+
+    addr = Mail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>")
+    assert_instance_of(Mail::Address, addr)
+    assert_equal("Bob Smith", addr.display_name)
+    assert_equal("Bob Smith", addr.name)
+    assert_equal("example.com", addr.domain)
+    assert_equal("bobs", addr.local)
+
+    addr = Mail::Address.new("Bob Smith (Joe Bob) <bobs@example.com>" +
+			     ", Sally Joe (Hi Babe) <sallyj@test.example>")
+    assert_instance_of(Mail::Address, addr)
+    assert_equal("Bob Smith", addr.display_name)
+    assert_equal("Bob Smith", addr.name)
+    assert_equal("example.com", addr.domain)
+    assert_equal("bobs", addr.local)
+
+    addr = Mail::Address.new("\177\177")
+    assert_instance_of(Mail::Address, addr)
+    assert_equal(nil, addr.display_name)
+    assert_equal(nil, addr.name)
+    assert_equal(nil, addr.domain)
+    assert_equal(nil, addr.local)
+
+    e = assert_exception(ArgumentError) {
+      Mail::Address.new(["bob"])
+    }
+    e = assert_exception(ArgumentError) {
+      Mail::Address.new(Object.new)
+    }
+    e = assert_exception(ArgumentError) {
+      Mail::Address.new(Hash.new)
+    }
+  end
+  
 end
 
 if __FILE__ == $0

@@ -8,24 +8,45 @@
 #
 
 module Mail
+
+  # A class that supports the reading, writing and manipulation of
+  # RFC2822 mail headers.
+  #
+  # FIXME: missing a delete method.  Doh!
+
   class Header
     include Enumerable
 
     # fixme, document methadology for this (RFC2822)
     FIELD_NAME = '[^\x00-\x1f\x7f-\xff :]+:';
-    EXTRACT_TAG_RE = /\A(#{FIELD_NAME}|From )/o
-    
-    # Initializes the object.  Consumes input up to and including the blank
-    # line in input separating the header from the message body.
+    EXTRACT_FIELD_NAME_RE = /\A(#{FIELD_NAME}|From )/o
+
+    # Creates a new header object.  If +input+ is not nil, immediately
+    # calls #read to process the headers found in +input+.
 
     def initialize(input = nil)
       clear()
       read(input) unless input.nil?
     end
 
+    # Reads from +input+ up to and including the blank line that
+    # separates the message headers from the message body.  Each
+    # parseable header line is appended to this object.
+    #
+    # FIXME: this should not use <tt>each_line</tt> but rather use
+    # <tt>input.gets</tt>.
+    #
+    # FIXME: If there is a "put back last line" API available on
+    # +input+, then the line that causes parsing to stop should be
+    # pushed back.
+    #
+    # FIXME: As soon as a malformed header is found, it should
+    # terminate parsing.  This allows the caller to determine what
+    # should happen next.
+
     def read(input)
       line = nil
-      tag = nil
+      field_name = nil
       input.each_line {|ln|
 	if ln && line && ln =~ /\A[ \t]+/
 	  line += ln
@@ -33,31 +54,33 @@ module Mail
 	end
 
 	if line
-	  tag, line = format_line(tag, line)
-	  insert(tag, line, -1) if line
+	  field_name, line = format_line(field_name, line)
+	  insert(field_name, line, -1) if line
 	end
 
 	case ln
-	when EXTRACT_TAG_RE
-	  tag = $1
+	when EXTRACT_FIELD_NAME_RE
+	  field_name = $1
 	  line = ln
 	when /^$/
 	  break
 	else
-	  tag = nil
+	  field_name = nil
 	  line = nil
 	end
       }
     end
+
+    # Erase all headers in this object.
 
     def clear()
       @names = []
       @lines = []
     end
 
-    # Iterate over each field.  Two vars are set in the result:
-    # |tag, line|.
-    def each()
+    # Iterate over each header.
+
+    def each() # yields: field_name, line
       unless @names.nil?
 	@names.each_index { |i|
 	  yield(@names[i], @lines[i])
@@ -65,37 +88,46 @@ module Mail
       end
     end
 
-    # Return the first matching header of a given name.  This will
-    # include the header tag.  If passed a Fixnum, returns the header
-    # indexed by the number.
-    def [](tag)
-      if tag.kind_of? Fixnum
-	@lines[tag]
+    # Return the first matching header of a given field name.  The
+    # string returned is the entire header line.  If passed a Fixnum,
+    # returns the header indexed by the number.
+
+    def [](field_name)
+      if field_name.kind_of? Fixnum
+	@lines[field_name]
       else
-	unless tag.kind_of? String
-	  raise TypeError, "wanted type String, got type #{tag.class}"
+	unless field_name.kind_of? String
+	  raise TypeError, "wanted type String, got type #{field_name.class}"
 	end
-	tag = tag_format(tag)
-	result = detect { |t, v| if t == tag then true else nil end }
+	field_name = field_name_format(field_name)
+	result = detect { |t, v| if t == field_name then true else nil end }
 	if result.nil? then nil else result[1] end
       end
     end
 
     # Return the first matching header of a given name.  This will not
-    # include the header tag
-    def get(tag)
-      header = self[tag]
+    # include the header field name.
+    #
+    # This method accepts all argument types that #[] does.
+
+    def get(field_name)
+      header = self[field_name]
       unless header.nil?
-	Mail::Header.strip_tag(header)
+	Mail::Header.strip_field_name(header)
       else
 	nil
       end
     end
 
-    # Strip a tag from a header line
     class << self
-      def strip_tag(header)
-	unless header =~ EXTRACT_TAG_RE
+
+      # Returns the +header+ string with any header field name
+      # removed.  E.g.
+      #
+      #     Mail::Header.strip_field_name("From: bob@example.net")
+      #     => " bob@example.net"
+      def strip_field_name(header)
+	unless header =~ EXTRACT_FIELD_NAME_RE
 	  header
 	else
 	  $'.sub(/^\s*/, '')
@@ -103,47 +135,50 @@ module Mail
       end
     end
 
-    # Add a new line to the header.  If 'tag' is not nil, then it specifies
-    # the tag to use, otherwise it is extracted from line.  When index is -1
-    # (the default if not specified) the line is appended to the header,
-    # otherwise it is inserted at the specified index.  E.g. an index of 0
-    # will prepend the line to the header.
-    def add(tag, line, index = -1)
-      if tag.nil?
-	if line !~ EXTRACT_TAG_RE
+    # Add a new header.  If <tt>field_name</tt> is not nil, then it
+    # specifies the field name to use, otherwise it is extracted from
+    # line.  When +index+ is -1 (the default if not specified) the
+    # line is appended to the header, otherwise it is inserted at the
+    # specified index.  E.g. an +index+ of +0+ will prepend the header
+    # line.
+
+    def add(field_name, line, index = -1)
+      if field_name.nil?
+	if line !~ EXTRACT_FIELD_NAME_RE
 	  raise ArgumentException, "can not extract header from line"
 	end
-	tag = $1
+	field_name = $1
       else
-	line = tag_format(tag) + ": " + line
+	line = field_name_format(field_name) + ": " + line
       end
       if line =~ /\n\S/
 	raise ArgumentError, "line has no space after embedded newline"
       end
-      tag, line = format_line(tag, line)
-      insert(tag, line, index)
+      field_name, line = format_line(field_name, line)
+      insert(field_name, line, index)
     end
 
     # The string representation of the header
+    
     def to_s()
       @lines.join
     end
 
     private
 
-    def insert(tag, line, index)
+    def insert(field_name, line, index)
       if index < 0
 	@lines.push(line)
-	@names.push(tag)
+	@names.push(field_name)
       else
 	index = @lines.length if index > @lines.length
 	@lines[index, 0] = line
-	@names[index, 0] = tag
+	@names[index, 0] = field_name
       end
     end
 
-    def format_line(tag, line)
-      return tag_format(tag), line_format(line)
+    def format_line(field_name, line)
+      return field_name_format(field_name), line_format(line)
     end
 
     def line_format(line)
@@ -153,8 +188,8 @@ module Mail
       line
     end
 
-    def tag_format(tag)
-      tag.downcase.sub(/\s*:.*/, '')
+    def field_name_format(field_name)
+      field_name.downcase.sub(/\s*:.*/, '')
     end
     
   end
