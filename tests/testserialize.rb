@@ -14,7 +14,7 @@ require 'rmail/message'
 class TestRMailSerialize < TestBase
   def test_serialize_empty
     s = RMail::Serialize.new('').serialize(RMail::Message.new)
-    assert_equal("\n", s)
+    assert_equal("", s)
   end
 
   def test_serialize_basic
@@ -23,6 +23,20 @@ class TestRMailSerialize < TestBase
     m.header['from'] = "sally@example.net"
     m.body = "This is the body."
     s = RMail::Serialize.new('').serialize(m)
+    assert_equal(%q{to: bob@example.net
+from: sally@example.net
+
+This is the body.
+},
+                 s)
+  end
+
+  def test_serialize_s_write
+    m = RMail::Message.new
+    m.header['to'] = "bob@example.net"
+    m.header['from'] = "sally@example.net"
+    m.body = "This is the body."
+    s = RMail::Serialize.write('', m)
     assert_equal(%q{to: bob@example.net
 from: sally@example.net
 
@@ -43,6 +57,21 @@ This is the body.
 
     assert_match(/^=-\d+-\d+-\d+-\d+$/,
                  m.header.param('content-type', 'boundary'))
+  end
+
+  def test_serialize_boundary_override
+    m = RMail::Message.new
+    m.add_part(RMail::Message.new)
+    m.header.set_boundary("a")
+
+    m.part(0).add_part(RMail::Message.new)
+    m.part(0).header.set_boundary("a")
+
+    m.to_s
+
+    assert_match(/^=-\d+-\d+-\d+-\d+$/,
+                 m.part(0).header.param('content-type', 'boundary'))
+    assert_equal("a", m.header.param('content-type', 'boundary'))
   end
 
   def test_serialize_multipart_basic
@@ -66,6 +95,7 @@ This is the body.
 from: sally@example.net
 Content-Type: multipart/mixed; boundary="=-=-="
 MIME-Version: 1.0
+
 
 --=-=-=
 
@@ -104,14 +134,17 @@ This is another whacked out wacky part.
     assert_equal(%q{Content-Type: multipart/mixed; boundary="=-=-="
 MIME-Version: 1.0
 
+
 --=-=-=
 Content-Type: multipart/mixed; boundary="==-=-="
+
 
 --==-=-=
 
 --==-=-=
 
 --==-=-=--
+
 --=-=-=--
 },
                  s)

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002, 2003 Matt Armstrong.  All rights reserved.
 #
 #   Permission is granted for use, copying, modification,
 #   distribution, and distribution of modified versions of this work
@@ -9,8 +9,24 @@
 
 module RMail
 
-  # Serialize a RMail::Message object into an output stream supporting
-  # the << method.
+  # The RMail::Serialize class writes an RMail::Message object into an
+  # IO object or string.  The result is a standard mail message in
+  # text form.
+  #
+  # To do this, you pass the RMail::Message object to the
+  # RMail::Serialize object.  RMail::Serialize can write into any
+  # object supporting the << method.
+  #
+  # As a convenience, RMail::Serialize.write is a class method you can
+  # use directly:
+  #
+  #  # Write to a file
+  #  File.open('my-message', 'w') { |f|
+  #    RMail::Serialize.write(f, message)
+  #  }
+  #
+  # # Write to a new string
+  # string = RMail::Serialize.write('', message)
   class Serialize
 
     @@boundary_count = 0
@@ -25,39 +41,63 @@ module RMail
       @escape_from = escape_from
     end
 
+    # Serialize a given message into this object's output object.
     def serialize(message)
+      calculate_boundaries(message) if message.multipart?
       serialize_low(message)
+    end
+
+    # Serialize a message into a given output object.  The output
+    # object must support the << method in the same way that an IO or
+    # String object does.
+    def Serialize.write(output, message)
+      Serialize.new(output).serialize(message)
     end
 
     private
 
     def serialize_low(message, depth = 0)
       if message.multipart?
-        if depth == 0
-          calculate_boundaries(message)
+        delimiters, delimiters_boundary = message.get_delimiters
+        unless delimiters
+          boundary = "\n--" + message.header.param('Content-Type', 'boundary')
+          delimiters = Array.new(message.body.length + 1, boundary + "\n")
+          delimiters[-1] = boundary + "--\n"
         end
-        @output << message.header.to_s + "\n"
-        boundary = '--' + message.header.param('Content-Type', 'boundary')
+
+        @output << message.header.to_s
+
+        if message.body.length > 0 or message.preamble or
+            delimiters.last.length > 0
+          @output << "\n"
+        end
+
         if message.preamble
           @output << message.preamble
-          @output << "\n"
         end
+
+        delimiter = 0
         message.each_part { |part|
-          @output << boundary
-          @output << "\n"
+          @output << delimiters[delimiter]
+          delimiter = delimiter.succ
           serialize_low(part, depth + 1)
         }
-        @output << boundary
-        @output << "--\n"
+
+        @output << delimiters[delimiter]
+
         if message.epilogue
           @output << message.epilogue
-          @output << "\n" if depth > 0 || message.epilogue[-1] != ?\n
         end
+
       else
-        @output << message.header.to_s + "\n"
-        unless message.body.nil? || message.body.length == 0
+        @output << message.header.to_s
+        unless message.body.nil?
+          @output << "\n"
           @output << message.body
-          @output << "\n" if depth > 0 || message.body[-1] != ?\n
+          if depth == 0 and message.body.length > 0 and
+              message.body[-1] != ?\n
+            @output << "\n"
+          end
         end
       end
       @output
@@ -66,16 +106,7 @@ module RMail
     # Walk the multipart tree and make sure the boundaries generated
     # will actually work.
     def calculate_boundaries(message)
-
-      boundaries = []
-      calculate_boundaries_low(message, boundaries)
-
-      boundaries.each do |boundary, part|
-        if boundary != part.header.param('content-type', 'boundary')
-          part.header.set_boundary(boundary)
-        end
-      end
-
+      calculate_boundaries_low(message, [])
       unless message.header['MIME-Version']
         message.header['MIME-Version'] = "1.0"
       end
@@ -86,14 +117,17 @@ module RMail
 
       # First, come up with a candidate boundary for this part and
       # save it in our list of boundaries.
-      boundary = cantidate_boundary(part, boundaries)
-      boundaries << [ boundary, part ]
+      boundary = make_and_set_unique_boundary(part, boundaries)
 
       # Now walk through each part and make sure the boundaries are
-      # suitable.
+      # suitable.  We dup the boundaries array before recursing since
+      # sibling multipart can re-use boundary strings (though it isn't
+      # a good idea).
+      boundaries.push(boundary)
       part.each_part { |p|
         calculate_boundaries_low(p, boundaries) if p.multipart?
       }
+      boundaries.pop
     end
 
     # Generate a random boundary
@@ -108,19 +142,22 @@ module RMail
     # Returns a boundary that will probably work out.  Extracts any
     # existing boundary from the header, but will generate a default
     # one if the header doesn't have one set yet.
-    def cantidate_boundary(part, boundaries)
-      candidate = part.header.param('content-type', 'boundary',
-                                    generate_boundary)
-      make_boundary_unique(candidate, boundaries)
+    def make_and_set_unique_boundary(part, boundaries)
+      candidate = part.header.param('content-type', 'boundary')
+      unique = make_unique_boundary(candidate || generate_boundary, boundaries)
+      if candidate.nil? or candidate != unique
+        part.header.set_boundary(unique)
+      end
+      unique
     end
 
     # Make the passed boundary unique among the passed boundaries and
     # return it.
-    def make_boundary_unique(boundary, boundaries)
+    def make_unique_boundary(boundary, boundaries)
       continue = true
       while continue
         continue = false
-        boundaries.each do |existing, part|
+        boundaries.each do |existing|
           if boundary == existing[0, boundary.length]
             continue = true
             break

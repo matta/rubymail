@@ -1,73 +1,96 @@
-* Changes in RubyMail 0.10 (released 2002-12-13)
+= Changes in RubyMail 0.11 (released 2003-01-11)
 
-** Added rmail/mailbox/mboxreader.rb to the distribution.
+- parse->serialize "transparency" greatly improved.  This means that
+  when you parse a message and then serialize it back out you almost
+  always get the exact same message back.  This is true for all single
+  part messages as well as all validly formatted multipart MIME
+  messages (and even the most common invalidly formatted ones).
 
-* Changes in RubyMail 0.9 (released 2002-11-30)
+  The result is that RMail can now be used safely in mail filters
+  without risking damaging cryptographic signatures in the mails.
 
-** New RMail::Mailbox.read_mbox method that can be used to conveniently
-   read raw messages out of a Unix mbox mailbox.
+- RMail::Header#add now uses to_str instead of to_s to convert
+  arguments to strings.  This makes it behave more like standard
+  Ruby classes.
 
-** New RMail::Mailbox::MBoxReader class in
-   rmail/mailbox/mboxreader.rb.  This class can be used to easily read
-   messages out of a file in Unix "mbox" format.
+- RMail::Mailbox::MBoxReader now always makes sure the last piece of
+  data returned for each message is the end of line terminator, even
+  if one isn't present in the input.
 
-** The RMail::Parser::PushbackReader class
-   has been documented.  It has moved out of rmail/parser/multipart.rb
-   into rmail/parser/pushbackreader.rb
+- RMail::Parser::PushbackReader#read now takes nil argument to mean
+  "read all available input."  Derived classes should now override
+  the #read_chunk method instead of #read.
 
-** Various documentation fixes.  E.g. RMail::Parser.parse can take a
-   string as well as an IO object.
+= Changes in RubyMail 0.10 (released 2002-12-13)
 
-** The RMail::Parser::PushbackReader has a setable chunk size.  This
-   is useful mostly for testing.
+- Added rmail/mailbox/mboxreader.rb to the distribution.
 
-** Fix an uncaught exception when parsing multipart MIME messages that
-   contain only a preamble and an epilogue but no body parts.
+= Changes in RubyMail 0.9 (released 2002-11-30)
 
-** Fix a bug where RMail::Parser.multipart? would not return true if the
-   multipart message actually didn't have any parts.
+- New RMail::Mailbox.parse_mbox method that can be used to conveniently
+  read raw messages out of a Unix mbox mailbox.
 
-* Changes in RubyMail 0.8 (released 2002-03-18)
+- New RMail::Mailbox::MBoxReader class in
+  rmail/mailbox/mboxreader.rb.  This class can be used to easily read
+  messages out of a file in Unix "mbox" format.
 
-** The following has been removed from RubyMail and made part of the
-   RubyFilter package:
+- The RMail::Parser::PushbackReader class
+  has been documented.  It has moved out of rmail/parser/multipart.rb
+  into rmail/parser/pushbackreader.rb
 
- - All scripts that were in the RubyMail 0.7 bin directory.
- - Mail::LDA
- - Mail::Deliver
- - Mail::KeyedMailbox
- - Mail::MTA
- - Mail::AddressTagger
+- Various documentation fixes.  E.g. RMail::Parser.parse can take a
+  string as well as an IO object.
 
-   This keeps RubyMail a small and simple mail package, and provides
-   RubyFilter as an example of how to use RubyMail to write a mail
-   filter.
+- The RMail::Parser::PushbackReader has a setable chunk size.  This
+  is useful mostly for testing.
 
-** The Mail module has been renamed to RMail.  I think "Mail" should
-   be reserved for things included in the standard distribution of
-   Ruby.
+- Fix an uncaught exception when parsing multipart MIME messages that
+  contain only a preamble and an epilogue but no body parts.
 
-**  RMail::Header#match and match? don't require the name or value
-    arguments to be a case insensitive Regexps.  Also, when the value
-    argument is converted to a string, it is passed through
-    Regexp::escape first.
+- Fix a bug where RMail::Parser.multipart? would not return true if the
+  multipart message actually didn't have any parts.
 
-** RMail::Parser#parse can now parse from a string.
+= Changes in RubyMail 0.8 (released 2002-03-18)
 
-** Mail::Address#comments= can now take a simpple string to set just
-   one comment.
+- The following has been removed from RubyMail and made part of the
+  RubyFilter package:
 
-* Changes in RubyMail 0.7 (released 2002-02-26)
+  - All scripts that were in the RubyMail 0.7 bin directory.
+  - Mail::LDA
+  - Mail::Deliver
+  - Mail::KeyedMailbox
+  - Mail::MTA
+  - Mail::AddressTagger
 
-** A new chunked input scheme that makes parsing huge messages about 7
-   times faster in ruby 1.7 and 50 times faster in ruby 1.6.
+  This keeps RubyMail a small and simple mail package, and provides
+  RubyFilter as an example of how to use RubyMail to write a mail
+  filter.
 
-   When parsing a huge message that has a 2 megabyte attachment,
-   RubyMail running under ruby 1.7 is now faster than any email
-   package for ruby, perl or python.
+- The Mail module has been renamed to RMail.  I think "Mail" should
+  be reserved for things included in the standard distribution of
+  Ruby.
 
-   I wrote a benchmark that reads a 2 megabyte email from a file and
-   writes it out again, doing this 100 times.  The results are:
+-  RMail::Header#match and match? don't require the name or value
+   arguments to be a case insensitive Regexps.  Also, when the value
+   argument is converted to a string, it is passed through
+   Regexp::escape first.
+
+- RMail::Parser#parse can now parse from a string.
+
+- Mail::Address#comments= can now take a simpple string to set just
+  one comment.
+
+= Changes in RubyMail 0.7 (released 2002-02-26)
+
+- A new chunked input scheme that makes parsing huge messages about 7
+  times faster in ruby 1.7 and 50 times faster in ruby 1.6.
+
+  When parsing a huge message that has a 2 megabyte attachment,
+  RubyMail running under ruby 1.7 is now faster than any email
+  package for ruby, perl or python.
+
+  I wrote a benchmark that reads a 2 megabyte email from a file and
+  writes it out again, doing this 100 times.  The results are:
 
     ruby 1.7.2 w/rubymail (100 times)
          5.96s user  7.98s system 13.94s total
@@ -88,125 +111,124 @@
   to disk when they start to get huge, so RAM isn't needlessly
   used up.
 
-** Delivery to mbox files improved.
+- Delivery to mbox files improved.
 
-    - won't sleep forever waiting for the mailbox lock (flock)
-    - won't delivery to files that don't look like an mbox
-      (e.g. it is not a file, not in the right format).
-    - delivering to '/dev/null' is now a simple nop.
+  - won't sleep forever waiting for the mailbox lock (flock)
+  - won't delivery to files that don't look like an mbox
+    (e.g. it is not a file, not in the right format).
+  - delivering to '/dev/null' is now a simple nop.
 
-** Use the new File#fsync method when available in all of the mail
-   delivery functions.
+- Use the new File#fsync method when available in all of the mail
+  delivery functions.
 
-** Add bin/rsendmail.rb as another example of how I'm using RubyMail.
+- Add bin/rsendmail.rb as another example of how I'm using RubyMail.
 
-** A new Mail::AddressTagger class, included for fun.  Requires the
-   hmac-sha1 class (available in the ruby-hmac package on RAA).
+- A new Mail::AddressTagger class, included for fun.  Requires the
+  hmac-sha1 class (available in the ruby-hmac package on RAA).
 
-* Changes in RubyMail 0.6 (released 2002-02-15)
+= Changes in RubyMail 0.6 (released 2002-02-15)
 
-** Multipart MIME support.
+- Multipart MIME support.
 
-*** Mail::Parser now parses arbitrarily nested multipart MIME messages.
+  - Mail::Parser now parses arbitrarily nested multipart MIME messages.
 
-*** For the sake of dealing with multipart MIME messages, add the
+  - For the sake of dealing with multipart MIME messages, add the
     following methods to Mail::Message: preamble, epilogue, multipart?,
     add_part, decode, part.
 
-** A new Mail::AddressTagger class, for tagging addresses with
-   cryptographically verifiable extensions akin to TMDA.  Requires the
-   hmac-sha1 module from the RAA.  (experimental, I don't currently
-   use this)
+- A new Mail::AddressTagger class, for tagging addresses with
+  cryptographically verifiable extensions akin to TMDA.  Requires the
+  hmac-sha1 module from the RAA.  (experimental, I don't currently
+  use this)
 
-** A new Mail::Message#== method.
+- A new Mail::Message#== method.
 
-** A new Mail::Serialize class that can serialize a Mail::Message.
+- A new Mail::Serialize class that can serialize a Mail::Message.
 
-* Changes in RubyMail 0.5 (released 2002-02-02)
+= Changes in RubyMail 0.5 (released 2002-02-02)
 
-** The rdeliver.rb script is now fully documented.
+- The rdeliver.rb script is now fully documented.
 
-** The rdeliver.rb script now evaluates the .rdeliver file in the
-   context of a Deliver class (as opposed to simply loading it).  The
-   .rdeliver file must now define a Deliver#main method, where the
-   simplest .rdeliver file would be:
+- The rdeliver.rb script now evaluates the .rdeliver file in the
+  context of a Deliver class (as opposed to simply loading it).  The
+  .rdeliver file must now define a Deliver#main method, where the
+  simplest .rdeliver file would be:
 
     def main
       lda.save("INBOX")
     end
 
-** Add a KeyedMailbox class that can be used to implement simple
-   mailing list style confirmations.
+- Add a KeyedMailbox class that can be used to implement simple
+  mailing list style confirmations.
 
-** Add a message= method to Mail::DeliveryAgent.  This lets delivery
-   scripts change the message being delivered.
+- Add a message= method to Mail::DeliveryAgent.  This lets delivery
+  scripts change the message being delivered.
 
-** Re-wrote the RFC2822 address parser.  It is now more strict about
-   what it considers a valid address.
+- Re-wrote the RFC2822 address parser.  It is now more strict about
+  what it considers a valid address.
 
-* Changes in RubyMail 0.4 (released 2002-01-17)
+= Changes in RubyMail 0.4 (released 2002-01-17)
 
-** The bin/rdeliver.rb script is now tested.  Got rid of
-   bin/rdeliver-wrap.rb.
+- The bin/rdeliver.rb script is now tested.  Got rid of
+  bin/rdeliver-wrap.rb.
 
-** Mail::DeliveryAgent::DeliveryStatus renamed to
-   Mail::DeliveryAgent::DeliveryComplete.
-   Mail::DeliveryAgent::DeliverFailure renamed to
-   Mail::DeliveryAgent::DeliveryPipeFailure.
+- Mail::DeliveryAgent::DeliveryStatus renamed to
+  Mail::DeliveryAgent::DeliveryComplete.
+  Mail::DeliveryAgent::DeliverFailure renamed to
+  Mail::DeliveryAgent::DeliveryPipeFailure.
 
-** Mail::Deliver.deliver_mbox now uses File::SYNC to write the
-   message.
+- Mail::Deliver.deliver_mbox now uses File::SYNC to write the
+  message.
 
-** Mail::Header and Mail::Message no longer understand how to parse
-   messages.  Message parsing has been moved to Mail::Parser.
-   Mail::Parser uses the public API of Mail::Header and Mail::Message
-   to build up the message.
+- Mail::Header and Mail::Message no longer understand how to parse
+  messages.  Message parsing has been moved to Mail::Parser.
+  Mail::Parser uses the public API of Mail::Header and Mail::Message
+  to build up the message.
 
-** The Mail::Header API has been greatly changed.  It is now more like
-   Array and Hash.
+- The Mail::Header API has been greatly changed.  It is now more like
+  Array and Hash.
 
-** Mail::Deliver supports delivery to qmail style Maildir mailboxes.
-   Mail::DeliveryAgent#save will now deliver to a Maildir if the
-   folder's name ends in a slash.  E.g. "/home/user/Maildir/".
+- Mail::Deliver supports delivery to qmail style Maildir mailboxes.
+  Mail::DeliveryAgent#save will now deliver to a Maildir if the
+  folder's name ends in a slash.  E.g. "/home/user/Maildir/".
 
-** Mail::DeliveryAgent no longer logs an abstract of the message being
-   delivered.  All logging is up to the users of Mail::DeliveryAgent.
+- Mail::DeliveryAgent no longer logs an abstract of the message being
+  delivered.  All logging is up to the users of Mail::DeliveryAgent.
 
-* Changes in RubyMail 0.3
+= Changes in RubyMail 0.3
 
-** Add Mail::Header.length and Mail::Header.size methods.  Add
-   Mail::Header.match and Mail::Header.match? methods.
+- Add Mail::Header.length and Mail::Header.size methods.  Add
+  Mail::Header.match and Mail::Header.match? methods.
 
-** Move deliver.rb to bin/rdeliver-wrap.rb and main.rb to
-   bin/rdeliver.rb.  These are workable local delivery agent scripts
-   (suitable for running from .forward).
+- Move deliver.rb to bin/rdeliver-wrap.rb and main.rb to
+  bin/rdeliver.rb.  These are workable local delivery agent scripts
+  (suitable for running from .forward).
 
-** New Mail::MTA module that provides constants for exit codes.
+- New Mail::MTA module that provides constants for exit codes.
 
-** New features for Mail::DeliveryAgent.  Now Mail::DeliveryAgent
-   never calls exit, instead it throws DeliveryStatus exceptions.
-   There is also a new Mail::DeliveryAgent.process method that allows
-   you to use Mail::DeliveryAgent in block form.
-   Mail:DeliveryAgent.exitcode will return the correct exit code for a
-   given DeliveryStatus exception.
+- New features for Mail::DeliveryAgent.  Now Mail::DeliveryAgent never
+  calls exit, instead it throws DeliveryStatus exceptions.  There is
+  also a new Mail::DeliveryAgent.process method that allows you to use
+  Mail::DeliveryAgent in block form.  Mail:DeliveryAgent.exitcode will
+  return the correct exit code for a given DeliveryStatus exception.
 
-* Changes in RubyMail 0.2
+= Changes in RubyMail 0.2
 
-** HTML API documentation is now available in the doc subdirectory.
+- HTML API documentation is now available in the doc subdirectory.
 
-** Mail::DeliveryAgent::strip_tag is now
-   Mail::DeliveryAgent::strip_field_name.
+- Mail::DeliveryAgent::strip_tag is now
+  Mail::DeliveryAgent::strip_field_name.
 
-** Mail::Deliver::deliver_pipe implemented.  Mail::DeliveryAgent#pipe
-   implemented.
+- Mail::Deliver::deliver_pipe implemented.  Mail::DeliveryAgent#pipe
+  implemented.
 
-** Mail::DeliveryAgent#pipe and Mail::DeliveryAgent#save now report
-   success or failure with DeliverySuccess and DeliveryFailure
-   exceptions.  Mail::DeliveryAgent#reject and
-   Mail::DeliveryAgent#defer do not yet use the exceptions (they still
-   call exit).
+- Mail::DeliveryAgent#pipe and Mail::DeliveryAgent#save now report
+  success or failure with DeliverySuccess and DeliveryFailure
+  exceptions.  Mail::DeliveryAgent#reject and
+  Mail::DeliveryAgent#defer do not yet use the exceptions (they still
+  call exit).
 
-** Now runs clean under "ruby -w"
+- Now runs clean under "ruby -w"
 
-** Now works with newer rubyunit versions.
+- Now works with newer rubyunit versions.
 

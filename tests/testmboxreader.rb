@@ -12,37 +12,60 @@ require 'rmail/mailbox/mboxreader'
 
 class TextRMailMBoxReader < TestBase
 
-  def test_s_new
+  def test_mbox_s_new
     r = RMail::Mailbox::MBoxReader.new("")
     assert_instance_of(RMail::Mailbox::MBoxReader, r)
   end
 
-  def test_simple
+  def test_mbox_simple
     data_as_file("mbox.simple") { |f|
       mbox = RMail::Mailbox::MBoxReader.new(f)
 
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_equal("From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n",
                    chunk)
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_nil(chunk)
       mbox.next
 
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_equal("From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n",
                    chunk)
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_nil(chunk)
       mbox.next
 
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_equal("From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n",
                    chunk)
-      chunk = mbox.read
+      chunk = mbox.read(nil)
       assert_nil(chunk)
 
       mbox.next
-      chunk = mbox.read
+      chunk = mbox.read(nil)
+      assert_nil(chunk)
+    }
+  end
+
+  def test_mbox_odd
+    data_as_file("mbox.odd") { |f|
+      mbox = RMail::Mailbox::MBoxReader.new(f)
+
+      chunk = mbox.read(nil)
+      assert_equal("From foo@bar  Wed Nov 27 12:27:36 2002\nmessage1\n",
+                   chunk)
+      chunk = mbox.read(nil)
+      assert_nil(chunk)
+      mbox.next
+
+      chunk = mbox.read(nil)
+      assert_equal("From foo@bar  Wed Nov 27 12:27:40 2002\nmessage2\n",
+                   chunk)
+      chunk = mbox.read(nil)
+      assert_nil(chunk)
+
+      mbox.next
+      chunk = mbox.read(nil)
       assert_nil(chunk)
     }
   end
@@ -52,21 +75,21 @@ class TextRMailMBoxReader < TestBase
     assert_equal(expected, chunk)
   end
 
-  def test_chunksize
+  def test_mbox_chunksize
     1.upto(80) { |chunk_size|
       data_as_file("mbox.simple") { |f|
         mbox = RMail::Mailbox::MBoxReader.new(f)
 
         mbox.chunk_size = chunk_size
 
-        t_chunksize_helper \
-        (mbox, "From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n")
+        t_chunksize_helper(mbox,
+           "From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n")
         mbox.next
-        t_chunksize_helper \
-        (mbox, "From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n")
+        t_chunksize_helper(mbox,
+           "From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n")
         mbox.next
-        t_chunksize_helper \
-        (mbox, "From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n")
+        t_chunksize_helper(mbox,
+           "From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n")
         mbox.next
 
         chunk = mbox.read
@@ -102,7 +125,7 @@ class TextRMailMBoxReader < TestBase
     assert_equal(messages, messages2)
   end
 
-  def test_randomly
+  def test_mbox_randomly
     5.times {
       template = ("From foo@bar\n" +
                   "text1\ntext2\ntext3\ntexttexttexttexttext4\n" +

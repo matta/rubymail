@@ -71,6 +71,11 @@ module RMail
 
     # Decode the body of this message.
     #
+    # If the body of this message is encoded with
+    # <tt>quoted-printable</tt> or <tt>base64</tt>, this function will
+    # decode the data into its original form and return it.  If the
+    # body is not encoded, it is returned unaltered.
+    #
     # This only works when the message is not a multipart.
     def decode
       raise TypeError, "Can not decode a multipart message." if multipart?
@@ -121,6 +126,24 @@ module RMail
       to_s.each("\n") { |line|
         yield line
       }
+    end
+
+    def set_delimiters(delimiters, boundary)
+      raise TypeError, "not a multipart message" unless multipart?
+      raise ArgumentError, "delimiter array wrong size" unless
+        delimiters.length == @body.length + 1
+      @delimiters = delimiters.to_ary
+      @delimiters_boundary = boundary.to_str
+    end
+
+    def get_delimiters
+      unless multipart? and @delimiters and @delimiters_boundary and
+          @delimiters.length == @body.length + 1 and
+          header.param('content-type', 'boundary') == @delimiters_boundary
+        @delimiters = nil
+        @delimiters_boundary = nil
+      end
+      [ @delimiters, @delimiters_boundary ]
     end
 
   end

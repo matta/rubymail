@@ -47,22 +47,52 @@ module RMail
       end
 
       # Read a chunk of input.  The "size" argument is just a
-      # suggestion, and more or fewer bytes may be returned.
+      # suggestion, and more or fewer bytes may be returned.  If
+      # "size" is nil, then return the entire rest of the input
+      # stream.
       def read(size = @chunk_size)
-        unless size.is_a?(Fixnum) and size > 0
-          raise ArgumentError, "Read size (#{size.inspect}) must be a" +
-            " Fixnum greater than 0."
+        case size
+        when nil
+          chunk = nil
+          while temp = read(@chunk_size)
+            if chunk
+              chunk << temp
+            else
+              chunk = temp
+            end
+          end
+          chunk
+        when Fixnum
+          read_chunk(size)
+        else
+          raise ArgumentError,
+            "Read size (#{size.inspect}) must be a Fixnum or nil."
         end
-        chunk = if @pushback
-                  temp = @pushback
-                  @pushback = nil
-                  temp
-                elsif ! @input.nil?
-                  temp = @input.read(size)
-                else
-                  nil
-                end
-        fail unless @pushback.nil?
+      end
+
+      # Read a chunk of a given size.  Unlike #read, #read_chunk must
+      # be passed a chunk size, and cannot be passed nil.
+      #
+      # This is the function that should be re-defined in subclasses
+      # for specialized behavior.
+      def read_chunk(size)
+        standard_read_chunk(size)
+      end
+
+      # The standard implementation of read_chunk.  This can be
+      # convenient to call from derived classes when super() isn't
+      # easy to use.
+      def standard_read_chunk(size)
+        unless size.is_a?(Fixnum) && size > 0
+          raise ArgumentError,
+            "Read size (#{size.inspect}) must be greater than 0."
+        end
+        if @pushback
+          chunk = @pushback
+          @pushback = nil
+        elsif ! @input.nil?
+          chunk = @input.read(size)
+        end
         return chunk
       end
 
@@ -95,8 +125,7 @@ module RMail
         @chunk_size = size
       end
 
-      # Returns true if there is nothing left in the pushback buffer
-      # and the input IO source is at the end of file.
+      # Returns true if the next call to read_chunk will return nil.
       def eof
         @pushback.nil? and (@input.nil? or @input.eof)
       end
@@ -116,7 +145,7 @@ module RMail
           left << Regexp.quote(ch.chr)
           right << '|\z)'
         }
-        Regexp.new(left + right)
+        left + right
       end
 
     end

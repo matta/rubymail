@@ -223,6 +223,7 @@ Just wanted to say Hi!
       assert_equal(%q{Content-Type: multipart/mixed; boundary="=-=-="
 MIME-Version: 1.0
 
+
 --=-=-=
 
 part1 body

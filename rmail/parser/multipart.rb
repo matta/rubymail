@@ -34,18 +34,16 @@ module RMail
       # multiparts.
       def initialize(input, boundary)
         super(input)
-        @boundary = boundary
         escaped = Regexp.escape(boundary)
-        @boundary_re = /\n--#{escaped}(--)?.*?\n/
-        @might_be_boundary_re = might_be_boundary_re(@boundary)
+        @delimiter_re = /(?:\G|\n)--#{escaped}(--)?.*?(\n|\z)/
+        @might_be_delimiter_re = might_be_delimiter_re(boundary)
         @caryover = nil
         @chunks = []
         @eof = false
-        @found_boundary = false
-        @found_last_boundary = false
+        @delimiter = nil
+        @delimiter_is_last = false
         @in_epilogue = false
         @in_preamble = true
-        @have_read_first_byte = false
       end
 
       # Returns the next chunk of data from the input stream as a
@@ -55,189 +53,101 @@ module RMail
       #
       # If this method returns nil, you must call next_part to begin
       # reading the next MIME part in the data stream.
-      def read(chunk_size = @chunk_size)
+      def read_chunk(chunk_size)
+        chunk = read_chunk_low(chunk_size)
+        if chunk
+          if @in_epilogue
+            while more = read_chunk_low(chunk_size)
+              chunk << more
+            end
+          end
+        end
+        chunk
+      end
+
+      def read_chunk_low(chunk_size)
 
         if @pushback
-          temp = @pushback
-          @pushback = nil
-          return temp
+          return standard_read_chunk(chunk_size)
         end
 
-        # The basic algorithm:
-        #
-        # If we've reached the end of the file or if the last chunk
-        # returned was the last of its part, return nil.
-        #
-        # If we have any saved chunks from previous calls, return the
-        # first one.
-        #
-        # Otherwise read in a chunk sized piece of data and prepend
-        # any previous caryover data from the previous chunk.
-        #
-        # If we couldn't read any more data, return nil.
-        #
-        # If we're reading data from the epilogue, return the chunk
-        # unprocessed.
-        #
-        # Otherwise, look for boundary markers in the chunk as
-        # follows:
-        #
-        #  - Look for a complete boundary.  If found, append the stuff
-        #    before the boundary to the chunks array.  If we found the
-        #    end boundary, break out of the loop, otherwise repeat.
-        #
-        #  - Take the remainder of the chunk, if any, and create a
-        #    chunk from it as follows:
-        #
-        #    -- Unless we found the end boundary or our last read from
-        #       our data source returned nil, check the end of the
-        #       chunk for what might be a boundary marker.  Do this by
-        #       searching backwards from the end of the chunk for "\n"
-        #       and searching forward for something that might be a
-        #       boundary.  If found, chop off the whole portion.  Then
-        #       make sure we have at least 2 characters after our
-        #       potential boundary so any trailing '--' is guaranteed
-        #       to be present.  Then save it as caryover data, to be
-        #       prepended to the next read.
-        #
-        #    -- Append whatever remains, even if it is a string of
-        #       length zero to the chunks array.
-        #
-        #  - Now return the first element of the chunks array.
-        #
-        # If we are reading the epilogue, skip all the boundary logic
-        # above and just return the chunk without further processing.
-        #
         input_gave_nil = false
         loop {
-          return nil if @eof || @found_boundary
-
-          puts "top of loop, @chunks now #{@chunks.inspect}" if $DEBUG
+          return nil if @eof || @delimiter
 
           unless @chunks.empty?
-            chunk, @found_boundary, @found_last_boundary = @chunks.shift
-            raise if chunk.nil? && !@found_boundary
+            chunk, @delimiter, @delimiter_is_last = @chunks.shift
             return chunk
           end
 
-          chunk = @input.read(chunk_size)
+          chunk = standard_read_chunk(chunk_size)
 
-          if !@have_read_first_byte && chunk && chunk.length > 0
-            # If the first byte we read is '-' we might be looking at
-            # the first boundary.  Prepend the newline so the regexps
-            # will find it.  We can't depend on chunk being any longer
-            # than one byte here.
-            if chunk[0] == ?-
-              chunk[0,0] = "\n"
-              puts "prepend newline to first chunk" if $DEBUG
-            end
-            @have_read_first_byte = true
-          end
-
-          puts "chunk read #{chunk.inspect}" if $DEBUG
           if chunk.nil?
             input_gave_nil = true
           end
           if @caryover
             if chunk
-              chunk[0, 0] = @caryover
-            else
-              chunk = @caryover
+              @caryover << chunk
             end
+            chunk = @caryover
             @caryover = nil
-          end
-          puts "chunk w/carryover #{chunk.inspect}" if $DEBUG
-
-          if chunk && input_gave_nil
-            # If input didn't end with a newline, add one so our
-            # regexps work.
-            if chunk[-1] != ?\n
-              chunk << ?\n
-            end
           end
 
           if chunk.nil?
-            puts "eof #{chunk.inspect}" if $DEBUG
             @eof = true
             return nil
           elsif @in_epilogue
-            puts "in epilogue, returning chunk #{chunk.inspect}" if $DEBUG
             return chunk
           end
 
           start = 0
-          found_last_boundary = false
+          found_last_delimiter = false
 
-          while start < chunk.length &&
-              found = chunk.index(@boundary_re, start)
+          while !found_last_delimiter and
+              (start < chunk.length) and
+              (found = chunk.index(@delimiter_re, start))
 
-            puts "found boundary in #{chunk.inspect} at #{found.inspect} with start at #{start.inspect}" if
-              $DEBUG
-            # check if boundary had the trailing --
-            if $~.begin(1)
-              puts "we found the last boundary" if $DEBUG
-              found_last_boundary = true
+            if $~[2] == '' and !input_gave_nil
+              break
             end
+
+            delimiter = $~[0]
+
+            # check if delimiter had the trailing --
+            if $~.begin(1)
+              found_last_delimiter = true
+            end
+
             temp = if found == start
                      nil
                    else
                      chunk[start, found - start]
                    end
-            puts "found boundary, saving chunk #{temp.inspect} off" if $DEBUG
-            @chunks << [ temp, true, found_last_boundary ]
-            puts "chunks now #{@chunks.inspect}" if $DEBUG
-            # We start searching again beginning with the newline at
-            # the end of this line.
-            start = $~.end(0) - 1
-            puts "start now #{start.inspect} into #{chunk.inspect}" if $DEBUG
-            break if found_last_boundary
-          end
-          chunk[0, start] = ''
-          chunk = nil if chunk.length == 0
-          puts "after boundary splitting chunk is #{chunk.inspect}" if $DEBUG
 
-          # If something that looks like a boundary exists at the end
+            @chunks << [ temp, delimiter, found_last_delimiter ]
+
+            start = $~.end(0)
+          end
+
+          chunk = chunk[start..-1] if start > 0
+
+          # If something that looks like a delimiter exists at the end
           # of this chunk, refrain from returning it.
-          unless chunk.nil? || found_last_boundary || input_gave_nil
-            start = chunk.rindex(/\n/)
-            if !start
-              start = 0
-            end
-            puts "look for boundaries starting at #{start.inspect}" if
-              $DEBUG
-            if start
-              while start > 0 && chunk[start - 1] == ?\n
-                start -= 1
-              end
-              puts "adjusted start is #{start.inspect}" if $DEBUG
-              if chunk.index(@might_be_boundary_re, start)
-                puts "found potential boundary" if $DEBUG
-                match_end = $~.end(0)
-                @caryover = chunk[start..-1]
-                chunk[start..-1] = ''
-                chunk = nil if chunk.length == 0
-                puts "carryover now #{@caryover.inspect}" if $DEBUG
-                puts "chunk now #{chunk.inspect}" if $DEBUG
-                while (@caryover.length - match_end) < 2
-                  temp = @input.read(chunk_size)
-                  break unless temp
-                  @caryover << temp
-                  puts "padded caryover now #{@caryover.inspect}" if $DEBUG
-                end
-              end
+          unless found_last_delimiter or input_gave_nil
+            start = chunk.rindex(/\n/) || 0
+            if chunk.index(@might_be_delimiter_re, start)
+              @caryover = chunk[start..-1]
+              chunk[start..-1] = ''
+              chunk = nil if chunk.length == 0
             end
           end
 
-          @chunks << [ chunk, false, false ] unless chunk.nil?
-
-          puts "end of loop, @chunks #{@chunks.inspect}" if $DEBUG
-
-          chunk, @found_boundary, @found_last_boundary = @chunks.shift
+          unless chunk.nil?
+            @chunks << [ chunk, nil, false ]
+          end
+          chunk, @delimiter, @delimiter_is_last = @chunks.shift
 
           if chunk
-            puts "returning chunk #{chunk.inspect}" if $DEBUG
-            puts "  preamble #{preamble?.inspect}" if $DEBUG
-            puts "  epilogue #{epilogue?.inspect}" if $DEBUG
             return chunk
           end
         }
@@ -246,18 +156,14 @@ module RMail
       # Start reading the next part.  Returns true if there is a next
       # part to read, or false if we have reached the end of the file.
       def next_part
-        puts "- next part" if $DEBUG
         if @eof
-          puts "- sorry dude, we're at EOF" if $DEBUG
           false
         else
-          if @found_boundary
+          if @delimiter
+            @delimiter = nil
             @in_preamble = false
-            @in_epilogue = @found_last_boundary
-            @found_boundary = false
-            puts "- preamble #{@in_preamble.inspect} epilogue #{@in_epilogue.inspect}" if $DEBUG
+            @in_epilogue = @delimiter_is_last
           end
-          puts "- go!" if $DEBUG
           true
         end
       end
@@ -274,41 +180,19 @@ module RMail
         @in_epilogue
       end
 
+      # Call this to retrieve the delimiter string that terminated the
+      # part just read.  This is cleared by #next_part.
+      def delimiter
+        @delimiter
+      end
+
       private
 
-      def might_be_boundary_re(boundary)
-        PushbackReader.maybe_contains_re("\n--" + boundary)
+      def might_be_delimiter_re(boundary)
+        s = PushbackReader.maybe_contains_re("--" + boundary)
+        Regexp.new('(?:\A|\n)(?:' + s + '|\z)')
       end
 
     end
   end
-end
-
-
-if $0 == __FILE__
-
-  def print_read_result(depth, line, parser)
-    puts "#{depth} read -> " + line.inspect + " [preamble #{parser.preamble?}, epilogue #{parser.epilogue?}]"
-  end
-
-  def parse(parser, depth, chunk_size)
-    while true
-      line = parser.read(chunk_size)
-      print_read_result(depth, line, parser)
-      if line.nil?
-        res = parser.next_part
-        puts "#{depth} next_part -> " + res.inspect
-        unless res
-          puts "#{depth} returning"
-          break
-        end
-      end
-    end
-  end
-
-  File.open("../../tests/data/transparency/message.2") { |f|
-    p = RMail::Parser::MultipartReader.
-      new(f, '----=_NextPart_000_007F_01BDF6C7.FABAC1B0')
-    parse(p, 0, 1)
-  }
 end

@@ -44,15 +44,19 @@ module RMail
         super(input)
         @end_of_message = false
         @chunk_minsize = 0
-        @line_separator = line_separator
+        @sep = line_separator
+        @tail = nil
 
         # This regexp will match a From_ header, or some prefix.
-        @partial_from_re = RMail::Parser::PushbackReader.
-          maybe_contains_re("#{@line_separator}From ")
+        re_string = RMail::Parser::PushbackReader.
+          maybe_contains_re("#{@sep}From ")
+        @partial_from_re = Regexp.new(re_string)
 
         # This regexp will match an entire From_ header.
-        @entire_from_re = /\A#{@line_separator}From .*?#{@line_separator}/
+        @entire_from_re = /\A#{@sep}From .*?#{@sep}/
       end
+
+      alias_method :parent_read_chunk, :read_chunk
 
       # Reads some data from the current message and returns it.  The
       # `size' argument is just a suggestion, and the returned string
@@ -63,58 +67,22 @@ module RMail
       # returns nil and #next must be called to begin reading from the
       # next message.  You can use #eof to tell if there is any more
       # data to be read from the input source.
-      def read(size = @chunk_size)
-        chunk = nil
-        if size.nil?
-          # Handle reading a whole message if given a nil chunk size.
-          while temp = read(@chunk_size)
-            if chunk
-              chunk << temp
-            else
-              chunk = temp
-            end
+      def read_chunk(size)
+        chunk = read_chunk_low(size)
+        if chunk
+          if chunk.length > @sep.length
+            @tail = chunk[-@sep.length .. -1]
+          else
+            @tail ||= ''
+            @tail << chunk
           end
-        else
-          if !@end_of_message and chunk = super(size)
-            # Read at least @chunk_minsize bytes.
-            while chunk.length < @chunk_minsize && more = super(size)
-              chunk << more
-            end
-            if match = @partial_from_re.match(chunk)
-              # We matched what might be a From_ separator.  Separate
-              # the chunk into what came before and what came after it.
-              mbegin = match.begin(0)
-              rest = chunk[mbegin .. -1]
-
-              if @entire_from_re =~ rest
-                # We've got a full From_ line, so set the end of message
-                # flag and get rid of the line separator present just
-                # before the From_.
-                @end_of_message = true
-                @chunk_minsize = 0
-                rest[0, @line_separator.length] = "" # painful
-              else
-                # Make sure we read more than just the pushback.
-                @chunk_minsize = rest.length + 1
-              end
-
-              # Return the whole chunk with a partially matched From_
-              # when there is nothing further to read.
-              unless ! @end_of_message && eof
-                # Otherwise, push back the From_ and return the
-                # pre-match.
-                pushback(rest)
-                if mbegin == 0 and @end_of_message
-                  chunk = nil
-                else
-                  chunk = chunk[0, mbegin]
-                end
-              end
-
-            end
+        elsif @tail
+          if @tail[-@sep.length .. -1] != @sep
+            chunk = @sep
           end
+          @tail = nil
         end
-        return chunk
+        chunk
       end
 
       # Advances to the next message to be read.  Call this after
@@ -125,8 +93,61 @@ module RMail
       # message to read.
       def next
         @end_of_message = false
+        @tail = nil
       end
 
+      alias_method :parent_eof, :eof
+
+      # Returns true if the next call to read_chunk will return nil.
+      def eof
+        parent_eof and @tail.nil?
+      end
+
+      private
+
+      def read_chunk_low(size)
+        return nil if @end_of_message
+        if chunk = parent_read_chunk(size)
+          # Read at least @chunk_minsize bytes.
+          while chunk.length < @chunk_minsize && more = parent_read_chunk(size)
+            chunk << more
+          end
+          if match = @partial_from_re.match(chunk)
+            # We matched what might be a From_ separator.  Separate
+            # the chunk into what came before and what came after it.
+            mbegin = match.begin(0)
+            rest = chunk[mbegin .. -1]
+
+            if @entire_from_re =~ rest
+              # We've got a full From_ line, so set the end of message
+              # flag and get rid of the line separator present just
+              # before the From_.
+              @end_of_message = true
+              @chunk_minsize = 0
+              rest[0, @sep.length] = "" # painful
+            else
+              # Make sure that next time we read more than just the
+              # pushback.
+              @chunk_minsize = rest.length + 1
+            end
+
+            # Return the whole chunk with a partially matched From_
+            # when there is nothing further to read.
+            unless ! @end_of_message && parent_eof
+              # Otherwise, push back the From_ and return the
+              # pre-match.
+              pushback(rest)
+              if mbegin == 0 and @end_of_message
+                chunk = nil
+              else
+                chunk = chunk[0, mbegin]
+              end
+            end
+
+          end
+        end
+        return chunk
+      end
     end
   end
 end

@@ -1,43 +1,54 @@
--*- text -*-
+= RubyMail
 
-    Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+This is RubyMail, a lightweight mail library containing various
+utility classes and modules that allow Ruby scripts to parse,
+modify, and generate MIME mail messages.
+
+= License
+
+    Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights
+    reserved.
 
     Permission is granted for use, copying, modification,
     distribution, and distribution of modified versions of this work
     as long as the above copyright notice is included.
 
+In other words, you can do anything with this code so long as the
+copyright remains.
+
+= Requirements
+
+Ruby 1.6.* or Ruby 1.8.*.  No non-standard packages are required.
+
+= Documentation
+
+The documentation is in RDoc format in the doc subdirectory.  Aside
+from the API reference, you will be interested in guide/Intro.txt.
+
+= Status
+
+This package works well, but I consider all API subject to change.
+
+I very much appreciate suggestions and comments, but please think
+twice about using this for production use just yet.
+
+= Tests?
+
+This package has a complete unit test suite (requires RubyUnit to
+run).  Currently all of my e-mail is processed by this library.
+
+= Why?
+
+It is fun.
+
+One use for RubyMail is the RubyFilter package, available at:
+
+    http://www.lickey.com/rubyfilter/
+
+= Alternatives
+
+You might check out TMail as well.
+
+= Support
+
 To reach the author of RubyMail, send mail to matt@lickey.com.
-
-What is RubyMail?
-
-    This is RubyMail, a lightweight mail library containing various
-    utility classes and modules that allow Ruby scripts to parse,
-    modify, and generate MIME mail messages.
-
-Status
-
-    This package works well, but I consider all API subject to change.
-
-    I very much appreciate suggestions and comments, but please think
-    twice about using this for production use just yet.
-
-Documentation
-
-    See the doc/ subdirectory for HTML documentation.
-
-Tests?
-
-    This package has a complete unit test suite (requires RubyUnit to
-    run).  Currently all of my e-mail is processed by this library.
-
-Why?
-
-    It is fun.
-
-    One use for RubyMail is the RubyFilter package, available at:
-
-        http://www.lickey.com/rubyfilter/
-
-Alternatives
-
-    You might check out TMail as well.

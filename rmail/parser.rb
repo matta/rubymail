@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 =begin
-   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
+   Copyright (C) 2002, 2003 Matt Armstrong.  All rights reserved.
 
    Permission is granted for use, copying, modification,
    distribution, and distribution of modified versions of this work
@@ -12,8 +12,21 @@ require 'rmail/parser/multipart'
 
 module RMail
 
-  # The RMail::Parser class is responsible for parsing messages from
-  # files or strings.
+  # The RMail::Parser class creates RMail::Message objects from Ruby
+  # IO objects or strings.
+  #
+  # To parse from a string:
+  #   message = RMail::Parser.read(the_string)
+  #
+  # To parse from an IO object:
+  #   message = File.open('my-message') { |f|
+  #     RMail::Parser.read(f)
+  #   }
+  #
+  # You can also parse from STDIN, etc.
+  #   message = RMail::Parser.read(STDIN)
+  #
+  # In all cases, the parser consumes all input.
   class Parser
 
     # This exception class is thrown when the parser encounters an
@@ -47,6 +60,15 @@ module RMail
     # mostly for testing.
     attr_accessor :chunk_size
 
+    # Parse a message from the IO object +io+ and return a new
+    # message.  The +io+ object can also be a string.  This is just
+    # shorthand for:
+    #
+    #   RMail::Parser.new.parse(io)
+    def Parser.read(input)
+      Parser.new.parse(input)
+    end
+
     private
 
     # Parse a message from the IO object +io+ and return a new
@@ -69,14 +91,13 @@ module RMail
           data ||= ''
           data << chunk
         end
-        puts "parse_body: body #{data.inspect}" if $DEBUG
         message.body = data
       end
     end
 
     def parse_multipart_body(input, message, depth)
-      input = MultipartReader.
-        new(input, message.header.param('content-type', 'boundary'))
+      boundary = message.header.param('content-type', 'boundary')
+      input = MultipartReader.new(input, boundary)
       input.chunk_size = @chunk_size if @chunk_size
 
       # Ensure that message.multipart? returns true even if there are
@@ -84,29 +105,15 @@ module RMail
       message.body = []
 
       # Reach each part, adding it to this entity as appropriate.
+      delimiters = []
       while input.next_part
-        # Strip the newline that the multipart reader left at the
-        # end of each boundary line.  We skip doing this for preamble
-        # parts because they do not begin with a boundary line.
-        if !input.preamble?
-          while peek = input.read
-            if peek.length > 0
-              puts "parse_multipart_body: " +
-                "depth #{depth} peek #{peek.inspect}" if $DEBUG
-              peek[0,1] = ''
-              input.pushback(peek)
-              break
-            end
-          end
-        end
-
         if input.preamble? || input.epilogue?
           data = nil
           while chunk = input.read
             data ||= ''
             data << chunk
           end
-          if data and data.length > 0
+          if data
             if input.preamble?
               message.preamble = data
             else
@@ -116,12 +123,10 @@ module RMail
         else
           message.add_part(parse_low(input, depth + 1))
         end
+        delimiters << (input.delimiter || "") unless input.epilogue?
+        message.set_delimiters(delimiters, boundary)
       end
     end
-
-    # fixme, document methadology for this (RFC2822)
-    FIELD_NAME = '[^\x00-\x1f\x7f-\xff :]+:';
-    EXTRACT_FIELD_NAME_RE = /\A(#{FIELD_NAME}) */o
 
     def parse_header(input, message)
       data = nil
@@ -131,16 +136,16 @@ module RMail
         data ||= ''
         data << chunk
         if data[0] == ?\n
-          header = nil
-          data[0, 1] = ''
-          rest = data
+          # A leading newline in the message is seen when parsing the
+          # parts of a multipart message.  It means there are no
+          # headers.  The body part starts directly after this
+          # newline.
+          rest = data[1..-1]
         else
           header, rest = data.split("\n\n", 2)
         end
         break if rest
       end
-      puts "parse_header: header #{header.inspect} rest #{rest.inspect}" if
-        $DEBUG
       input.pushback(rest)
       parse_header_string(header, message) if header
     end
@@ -150,19 +155,10 @@ module RMail
       string.split(/\n(?!\s)/).each { |field|
         if first && field =~ /^From /
           message.header.mbox_from = field
-        elsif field =~ EXTRACT_FIELD_NAME_RE
-          message.header.add($1, $'.chomp("\n"))
+        else
+          message.header.add_raw(field)
         end
       }
     end
   end
-end
-
-if $0 == __FILE__
-  require 'pp'
-  File.open("../tests/data/transparency/message.1") {|f|
-    p = RMail::Parser.new
-    p.chunk_size = 1024 * 64
-    pp p.parse(f)
-  }
 end

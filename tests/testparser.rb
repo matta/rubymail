@@ -102,8 +102,8 @@ It DOES end with a linebreak.
     }
     assert_nil(m.preamble)
     assert_nil(m.part(0).preamble)
-    assert_nil(m.part(0).epilogue)
-    assert_nil(m.epilogue)
+    assert_equal("", m.part(0).epilogue)
+    assert_equal("", m.epilogue)
   end
 
   def test_parser_nested_simple2
@@ -113,7 +113,7 @@ It DOES end with a linebreak.
 
     assert_nil(m.preamble)
     assert_nil(m.part(0).preamble)
-    assert_nil(m.part(0).epilogue)
+    assert_equal("", m.part(0).epilogue)
     assert_equal("\n", m.epilogue)
   end
 
@@ -254,6 +254,278 @@ It DOES end with a linebreak.
       end
       assert_equal(m, p.parse(m.to_s))
     }
+  end
+
+  def test_parse_multipart_01
+    m = data_as_file('parser/multipart.1') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_equal("epilogue\n", m.epilogue)
+    assert_equal(1, m.body.length)
+
+    begin
+      part = m.part(0)
+      assert_equal(1, part.header.length)
+      assert_nil(part.body)
+      assert_nil(part.preamble)
+      assert_nil(part.epilogue)
+      assert_equal("part1", part.header[0])
+    end
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", "\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_02
+    m = data_as_file('parser/multipart.2') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("\n", m.epilogue)
+    assert_equal(1, m.body.length)
+
+    begin
+      part = m.part(0)
+      assert_equal(0, part.header.length)
+      assert_nil(part.body)
+      assert_nil(part.preamble)
+      assert_nil(part.epilogue)
+    end
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", "\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_03
+    m = data_as_file('parser/multipart.3') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal(1, m.body.length)
+
+    begin
+      part = m.part(0)
+      assert_equal(0, part.header.length)
+      assert_nil(part.body)
+      assert_nil(part.preamble)
+      assert_nil(part.epilogue)
+    end
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["--aa\n", "--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_04
+    m = data_as_file('parser/multipart.4') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_equal("epilogue\n", m.epilogue)
+    assert_equal([], m.body)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_05
+    m = data_as_file('parser/multipart.5') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal([], m.body)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_06
+    m = data_as_file('parser/multipart.6') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal([], m.body)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_07
+    m = data_as_file('parser/multipart.7') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble\n", m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal([], m.body)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_08
+    m = data_as_file('parser/multipart.8') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_equal("epilogue", m.epilogue)
+    assert_equal(1, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", "\n--aa--\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_09
+    m = data_as_file('parser/multipart.9') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal(1, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", "\n--aa--"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_10
+    m = data_as_file('parser/multipart.10') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_nil(m.preamble)
+    assert_equal("", m.epilogue)
+    assert_equal(0, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["--aa--"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_11
+    m = data_as_file('parser/multipart.11') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_equal("epilogue\n", m.epilogue)
+    assert_equal(3, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\t\n", "\n--aa \n", "\n--aa \t \t\n", "\n--aa-- \n"],
+                 delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_12
+    m = data_as_file('parser/multipart.12') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_equal("epilogue\n", m.epilogue)
+    assert_equal(3, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aaZ\n", "\n--aa ignored\n", "\n--aa \t \tignored\n",
+                   "\n--aa--ignored\n"], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_13
+    m = data_as_file('parser/multipart.13') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_nil(m.epilogue)
+    assert_equal(1, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", ""], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_14
+    m = data_as_file('parser/multipart.14') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble", m.preamble)
+    assert_nil(m.epilogue)
+    assert_equal(1, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal(["\n--aa\n", ""], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_15
+    m = data_as_file('parser/multipart.15') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble\nline1\nline2\n", m.preamble)
+    assert_nil(m.epilogue)
+    assert_equal(0, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal([""], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_parse_multipart_16
+    m = data_as_file('parser/multipart.16') do |f|
+      RMail::Parser.new.parse(f)
+    end
+
+    assert_equal("preamble\nline1\nline2", m.preamble)
+    assert_nil(m.epilogue)
+    assert_equal(0, m.body.length)
+
+    delimiters, delimiters_boundary = m.get_delimiters
+    assert_equal([""], delimiters)
+    assert_equal("aa", delimiters_boundary)
+  end
+
+  def test_rmail_parser_s_read
+
+    string_msg = <<-EOF
+From matt@lickey.com  Mon Dec 24 00:00:06 2001
+From:    matt@example.net
+To:   matt@example.com
+Subject: test message
+
+message body
+has two lines
+    EOF
+
+    m = string_as_file(string_msg) { |f|
+      RMail::Parser.read(f)
+    }
+    common_test_parse(m)
+
+    m = RMail::Parser.read(string_msg)
+    common_test_parse(m)
   end
 
   def test_s_new

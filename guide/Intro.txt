@@ -1,0 +1,45 @@
+= Introduction to RubyMail
+
+This will get you started with the basics of using RubyMail.
+
+== Turning Text into a Message Object
+
+    message = RMail::Parser.read(input)
+
+The input can be a normal Ruby IO object or a string.  The result is a
+RMail::Message object.  See RMail::Parser for more information.
+
+== Turning a Message Object into Text
+
+    File.open('my-message', 'w') { |f|
+      RMail::Serialize.write(f, message)
+    }
+
+or
+
+    string = RMail::Serialize.write('', message)
+
+See RMail::Serialize for more information.
+
+A convenient shortcut when you want the message as a string is
+RMail::Message#to_s.
+
+    string = message.to_s
+
+You can also use RMail::Message#each to process each line of the
+serialized message in turn.
+
+    message.each { |line|
+      puts line
+    }
+
+== Manipulating a Message
+
+You use the methods of the RMail::Message and RMail::Header classes to
+manipulate the message.
+
+TODO: add headers, remove headers, get body
+
+== MIME Multipart Messages
+
+TODO: show how to add, delete, decode and encode parts.

@@ -7,6 +7,7 @@
 =end
 
 require 'rmail/utils'
+require 'rmail/header/field'
 
 module RMail
 
@@ -48,8 +49,6 @@ module RMail
   class Header
     include Enumerable
 
-    FIELD = Struct::new(:name, :value)
-
     # Creates a new empty header object.
     def initialize()
       clear()
@@ -63,9 +62,9 @@ module RMail
         temp = @fields[name_or_index]
         temp = temp.value unless temp.nil?
       else
-        name = field_name_format(name_or_index.to_s)
+        name = Field.name_canonicalize(name_or_index)
         result = detect { |n, v|
-          if field_name_format(n) == name then true else false end
+          if n.downcase == name then true else false end
         }
         if result.nil? then nil else result[1] end
       end
@@ -177,9 +176,9 @@ module RMail
 
     # Deletes all fields with +name+.  Returns self.
     def delete(name)
-      name = field_name_format(name.to_s)
+      name = Field.name_canonicalize(name.to_str)
       delete_if { |n, v|
-        field_name_format(n) == name
+        n.downcase == name
       }
       self
     end
@@ -241,10 +240,10 @@ module RMail
     def select(*names)
       result = []
       names.each { |name|
-        name = field_name_format(name.to_s)
+        name = Field.name_canonicalize(name)
         result.concat(find_all { |n, v|
-          field_name_format(n) == name
-        })
+                        n.downcase == name
+                      })
       }
       result
     end
@@ -278,7 +277,7 @@ module RMail
     #
     # Always returns self.
     def add(name, value, index = nil, params = nil)
-      value = value.to_s
+      value = value.to_str
       if params
         value = value.dup
         sep = "; "
@@ -296,10 +295,17 @@ module RMail
           end
         end
       end
-      field = FIELD.new(field_name_strip(name.to_s).freeze,
-                        value.freeze)
+      field = Field.new(name, value)
       index ||= @fields.length
       @fields[index, 0] = field
+      self
+    end
+
+    # Add a new field as a raw string together with a parsed
+    # name/value.  This method is used mainly by the parser and
+    # regular programs should stick to #add.
+    def add_raw(raw)
+      @fields << Field.new(raw)
       self
     end
 
@@ -342,11 +348,15 @@ module RMail
         s << @mbox_from
         s << "\n" unless @mbox_from[-1] == ?\n
       end
-      each { |n, v|
-        s << n
-        s << ': '
-        s << v
-        s << "\n" unless v[-1] == ?\n
+      @fields.each { |field|
+        if field.raw
+          s << field.raw
+        else
+          s << field.name
+          s << ': '
+          s << field.value
+        end
+        s << "\n" unless s[-1] == ?\n
       }
       s
     end
@@ -412,7 +422,7 @@ module RMail
       massage_match_args(name, value) { |name, value|
         header = RMail::Header.new
         found = each { |n, v|
-          if field_name_format(n) =~ name  &&  value =~ v
+          if n.downcase =~ name  &&  value =~ v
             header[n] = v
           end
         }
@@ -590,18 +600,26 @@ module RMail
       end
     end
 
-    def field_name_strip(field_name)
-      field_name.sub(/\s*:.*/, '')
-    end
+#     def field_name_strip(field_name)
+#       field_name.sub(/\s*:.*/, '')
+#     end
 
-    def field_name_format(field_name)
-      field_name_strip(field_name.downcase)
-    end
+#     def field_name_format(field_name)
+#       field_name_strip(field_name.downcase)
+#     end
+
+#     def field_value_strip(value)
+#       if value.frozen?
+#         value = value.dup
+#       end
+#       value.strip!
+#       value
+#     end
 
     def massage_match_args(name, value)
       case name
       when String
-        name = /^#{Regexp.escape(field_name_format(name))}$/i
+        name = /^#{Regexp.escape(Field.name_strip(name))}$/i
       when Regexp
       else
         raise ArgumentError,

@@ -13,6 +13,7 @@ require 'rubyunit'
 require 'rbconfig.rb'
 require 'tempfile'
 require 'find'
+require 'ftools'
 
 begin
   require 'pp'
@@ -102,7 +103,10 @@ class TestBase < RUNIT::TestCase
   end
 
   def data_as_file(name)
-    File.open(data_filename(name)) { |f|
+    unless name =~ %r{^/}
+      name = data_filename(name)
+    end
+    File.open(name) { |f|
       yield f
     }
   rescue Errno::ENOENT

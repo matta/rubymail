@@ -63,21 +63,12 @@ class TestRMailHeader < TestBase
       end
     end
 
-    # Test that we can pass in symbols and they get converted to
+    # Test that passing in symbols will not get converted into strings
     # strings
     h = RMail::Header.new
-    h[:Kelly] = :the_value
-    h.each_with_index do |pair, index|
-      case index
-      when 0
-	assert_equal("Kelly", pair[0])
-	assert_equal("the_value", pair[1])
-	assert(pair[0].frozen?)
-	assert(pair[1].frozen?)
-      else
-	raise
-      end
-    end
+    assert_exception(NO_METHOD_ERROR) {
+      h[:Kelly] = :the_value
+    }
 
     # Test that the : will be stripped
     h = RMail::Header.new
@@ -104,7 +95,7 @@ class TestRMailHeader < TestBase
     assert_equal(h2, h1)
 
     h1['foo'] = 'a'
-    h2['foo'] = 'a'
+    h2['FOO'] = 'a'
     h1['bar'] = 'b'
     h2['bar'] = 'b'
     assert_equal(h1, h2)
@@ -162,21 +153,11 @@ class TestRMailHeader < TestBase
       end
     end
 
-    # Test that we can pass in symbols and they get converted to
-    # strings
+    # Test that passing in symbol values raises an exception
     h = RMail::Header.new
-    assert_same(h, h.add(:Kelly, :the_value))
-    h.each_with_index do |pair, index|
-      case index
-      when 0
-	assert_equal("Kelly", pair[0])
-	assert_equal("the_value", pair[1])
-	assert(pair[0].frozen?)
-	assert(pair[1].frozen?)
-      else
-	raise
-      end
-    end
+    assert_exception(NO_METHOD_ERROR) {
+      assert_same(h, h.add("bob", :the_value))
+    }
 
     # Test that we can put stuff in arbitrary locations
     h = RMail::Header.new
@@ -204,6 +185,13 @@ class TestRMailHeader < TestBase
     h = RMail::Header.new
     h.add("name", "value", nil, 'param1' => 'value1', 'param2' => '+value2')
     assert_equal('value; param1=value1; param2="+value2"', h['name'])
+
+    h = RMail::Header.new
+    h.add_raw("MIME-Version: 1.0")
+    h.add_raw("Content-Type: multipart/alternative; boundary=X")
+    assert_match(/\b1\.0\b/, h['mime-version:'])
+    assert(h.param('content-type', 'boundary'))
+    assert_equal("multipart", h.media_type)
   end
 
   def test_clear
