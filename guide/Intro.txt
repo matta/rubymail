@@ -1,0 +1,122 @@
+= Introduction to RubyMail
+
+This will get you started with the basics of using RubyMail.
+
+== Turning Text into a Message Object
+
+    message = RMail::Parser.read(input)
+
+The input can be a normal Ruby IO object or a string.  The result is a
+RMail::Message object.  See RMail::Parser for more information.
+
+== Turning a Message Object into Text
+
+    File.open('my-message', 'w') { |f|
+      RMail::Serialize.write(f, message)
+    }
+
+or
+
+    string = RMail::Serialize.write('', message)
+
+See RMail::Serialize for more information.
+
+A convenient shortcut when you want the message as a string is
+RMail::Message#to_s.
+
+    string = message.to_s
+
+You can also use RMail::Message#each to process each line of the
+serialized message in turn.
+
+    message.each { |line|
+      puts line
+    }
+
+== Manipulating a Message
+
+You use the methods of the RMail::Message and RMail::Header classes to
+manipulate the message.
+
+=== Retrieve the Body
+
+You can retrieve the text of a single part message with
+RMail::Message#body.
+
+    body = message.body
+
+But beware that if the message is a MIME multipart message, +body+
+will be an Array of RMail::Message objects.  If you know you have a
+MIME multipart message (easily tested with RMail::Message#multipart?),
+then you can retrieve them individually with RMail::Message#part and
+RMail::Message#each_part.
+
+    first_part = message.part(0)
+
+    message.each_part { |part|
+        # do something with part
+    }
+
+See guide/MIME.txt for more tips on dealing with MIME messages.
+
+=== Manipulate the Message Headers
+
+The RMail::Message#header method retrieves the RMail::Header object
+that every message contains.  You can then use RMail::Header methods
+to manipulate the message's header.
+
+People often confuse a "message header" with "header fields."  In
+RubyMail a "header" always means the entire header of the message,
+while "field" means an individual header field (e.g. "Subject").
+
+To append new fields, simply access assign to them like an array:
+
+    message.header['To'] = 'bob@example.net'
+    message.header['From'] = 'sally@example.net'
+
+Note that the above will <em>always</em> append a new header, so you
+must delete existing headers if you want only one.
+
+To retrieve fields, you can access the header like an array.  This
+will return the field value.
+
+    subject = message.header['Subject']
+
+Of course, a header may have several fields with the same name.  To
+retrieve all the values you can use RMail::Header.match.
+
+    destinations = message.header.match(/^(to|cc|bcc)$/, nil)
+
+See the RMail::Header documentation for many other useful functions.
+
+== Dealing with Email Addresses
+
+The address syntax for Internet email messages (as specified in
+RFC2822) is complex.  RubyMail contains the RMail::Address class that
+can be used to parse and generate these addresses in a robust way.
+For example, to retrieve all destination addresses from a
+RMail::Header object:
+
+    recipients = RMail::Address.parse(header.match(/^(to|cc)/, nil))
+
+Then print out just the address portion:
+
+    recipients.each { |r|
+      r.address
+    }
+
+When creating an address from scratch, you typically do this:
+
+    address = RMail::Address.new("Bob Smith <bob@example.net>")
+
+Then to get the text form of the address form back:
+
+    address.format
+
+TODO: addresses can be keys of a hash, sorted, etc...
+
+== More Topics
+
+This is just the beginning.  See guide/TableOfContents.txt for a list
+of other things covered in this guide.
+

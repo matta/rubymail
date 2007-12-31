@@ -1,0 +1,83 @@
+= RubyMail
+
+This is RubyMail, a lightweight mail library containing various
+utility classes and modules that allow Ruby scripts to parse,
+modify, and generate MIME mail messages.
+
+= Requirements
+
+Ruby 1.6.7 (or newer) or Ruby 1.8.*.  Only tested under Linux, should
+be fine under any Unix.
+
+= Documentation
+
+The documentation is in RDoc format in the doc subdirectory.  Aside
+from the API reference, you will be interested in guide/Intro.txt and
+guide/TableOfContents.txt.
+
+= Install
+
+Type the following while in the package directory:
+
+  ruby install.rb config
+  ruby install.rb setup
+  ruby install.rb install
+
+You may need special permissions to execute the last line.  If you
+want to just install RubyMail to a custom location, just copy the
+rmail subdirectory manually.
+
+= Status
+
+This package works well, but I consider all API subject to change.
+
+I very much appreciate suggestions and comments, but please think
+twice about using this for production use just yet.
+
+= Tests?
+
+This package has a complete unit test suite (requires RubyUnit to
+run).  Currently all of my e-mail is processed by this library.
+
+= Why?
+
+It is fun.
+
+One use for RubyMail is the RubyFilter package, available at:
+
+    http://www.lickey.com/rubyfilter/
+
+= Alternatives
+
+You might check out TMail as well.
+
+= Support
+
+To reach the author of RubyMail, send mail to matt@lickey.com.
+
+= License
+
+ Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights
+ reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ 3. The name of the author may not be used to endorse or promote products
+    derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+ NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

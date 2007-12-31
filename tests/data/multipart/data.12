@@ -1,0 +1,9 @@
+preamble
+--aaZ
+part1
+--aa notignored
+part2
+--aa 	 	notignored
+part3
+--aa--notignored
+epilogue

@@ -1,0 +1,14 @@
+-*- outline -*-
+
+* Why RubyMail can't be completely transparent
+
+    RubyMail parses the MIME message into a document structure.  If
+    the MIME message is invalid, RubyMail might discard invalid
+    portions, etc.  Also, if you parse and then serialize a
+    RMail::Message, empty lines may be deleted or inserted around a
+    MIME boundary.
+
+    For these reasons, if you require a message to be output exactly
+    as it is put in, I suggest that you do not filter it *through*
+    RubyMail.  Instead, parse the message and decide what to do with
+    it, and then save the original message.

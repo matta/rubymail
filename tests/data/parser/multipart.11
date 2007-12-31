@@ -1,0 +1,12 @@
+Content-Type: multipart/mixed; boundary="aa"
+MIME-Version: 1.0
+
+preamble
+--aa	
+part1
+--aa 
+part2
+--aa 	 	
+part3
+--aa-- 
+epilogue

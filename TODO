@@ -1,0 +1,112 @@
+In rough priority order...but please let me know if something you need
+is missing.
+
+= FIXME
+
+- StreamHandler should get preamble_begin and preamble_end callbacks.
+  Same for epilogue_begin, epilogue_end.
+
+= STOLEN
+
+- Header continuation issue:
+  https://sourceforge.net/tracker/?func=detail&atid=105470&aid=504152&group_id=5470
+- Subject: =?ISO-8859-1?Q?=24=A3_Kills_IRB?=
+
+= Documentation
+
+- Make it clear that all strings the library works with are the ASCII
+  strings that are part of the RFC2822 message -- not strings in any
+  other charset.
+
+- Update Intro.txt, write MIME.txt and other Guides.
+
+= Features
+
+- RFC2231
+  http://mail.python.org/pipermail/email-sig/2003-November/000032.html
+
+- Smart handling of charset issues for text/ types.
+
+  [Goal] allow setting the body part to a given piece of data, and
+         RMail handles setting the appropriate MIME headers.  This
+         requires the data to have a known charset.
+
+  Maybe this plays into the encoding solution below.
+
+- Base64 and quoted-printable encoding
+
+  [Goal] allow setting the body part to a given piece of data, and
+         RMail handles setting the appropriate MIME headers and
+         possibly quoted-printable or base64 transcoding it if
+         appropriate.
+
+  This may be best done by introducing an RMail::TransferEncodedString
+  class that knows whether it is transcoded as binary,
+  quoted-printable, base64, etc.  You would set RMail::Message#body to
+  a TransferEncodedString and RMail::Message would set the appropriate
+  MIME headers.  If at serialization time the message body were set to
+  a plain String, then RMail::Message would transcode it into base64.
+
+- An RMail::Message#attach method that takes care of setting
+  content-disposition, etc.
+
+- Header folding in RMail::Header.
+
+- A small wrapper around Net::SMTP#send_mail that takes care of:
+  - parsing recipients out of the various message headers
+  - deleting the Bcc: header
+  - sending the message
+
+- Provide a way to parse just the message headers, leaving the rest in
+  the input stream (for use by RubyFilter).  This also implies a
+  feature that parses a message body given a RMail::Header object and
+  an input stream.  This should be easy -- read line by line until you
+  get an empty line or EOF, then pass that off to parse_header as a
+  string to be parsed.  Parsing the body can just use a
+  PushbackReader.
+
+- Handle different end of line terminators everywhere (for both
+  parsing and generating).
+
+- Provide some way when parsing a message to start spooling to disk
+  for really large messages.  This would be easy to do depending on
+  how message body transparency is implemented.
+
+- MIME charset support in header fields and message bodies.  This
+  requires m18n support in ruby, so it won't be coming soon.
+
+- Maildir parsing.
+
+- Simplify the Parser such that the class used to hold the parse
+  result can be easily changed and so the memory used can be
+  minimized.
+
+  The idea is to support "bogofilter" style parsing where the data of
+  the parse is immediately processed and thrown away but the structure
+  and content of the parsed message is important.
+
+  This may require extensions to header parsing, where things like the
+  important MIME header fields can be parsed without creating a whole
+  RMail::Header object.
+
+= Minor Features
+
+- Untainting of email addresses.  See Perl's CGI::Untaint::email.
+
+- Parser for Received: headers.  See Perl's Mail::Field::Received.
+
+= Documentation Tasks
+
+- A "howto" like documentation.
+
+  - How to write out a base64 encoded MIME part to a file.
+  - How to parse a unix MBOX file.
+  - MIME operations (see RFC2047)
+    - Character sets in message bodies
+    - Non-textual message bodies
+    - Multi-part message bodies
+    - Textual header information in character sets other than
+      US-ASCII.
+
+- Go through every class and make sure the methods are sorted in a
+  sensible order so the RDoc output is nice.

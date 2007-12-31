@@ -1,0 +1,25 @@
+= Thanks to Python's email module for:
+
+- The idea of separating parsing and serialization from the mail
+  classes themselves.
+- A lot of the MIME multipart API.
+
+= Thanks to Perl's MimeTools for:
+
+- Showing me this can all be done in the scripting language (no C
+  extensions necessary).
+- Accessing MIME parts via a File like API (thereby allowing them to
+  be stored on disk).
+
+= People:
+
+"Yoshinori K. Okuji" <okuji-at-enbug-dot-org>
+
+- Code to parse messages from strings (though since then I did it a
+  much simpler way).
+- Numerous other API suggestions and improvements.
+
+Booker Bense <bbense-at-SLAC-dot-Stanford-dot-EDU>
+
+- For prodding me to implement mbox mailbox parsing (and an initial
+  implementation).  It took me months, but I did it!

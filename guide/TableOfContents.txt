@@ -1,0 +1,13 @@
+= RubyMail Guide Table of Contents
+
+[guide/Intro.txt] Brief introduction to RubyMail.
+
+[guide/MIME.txt] How to perform common operations on MIME messages.
+
+[guide/SMTP.txt] How to send a RubyMail message out using the standard
+                 Ruby net/smtp.rb package.
+
+[guide/POP.txt] How to parse a RubyMail message directly from a POP
+                server using the standard net/pop.rb package.
+
+[guide/Mailbox.txt] How to read mailboxes of various formats.

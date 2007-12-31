@@ -1,0 +1,6 @@
+= MIME Support in RubyMail
+
+FIXME: write this.
+TODO: show how to add, delete, decode and encode parts.
+
+http://rwiki.moonwolf.com/rw-cgi.cgi?cmd=view;name=RubyMail
