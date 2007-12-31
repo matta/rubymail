@@ -24,33 +24,6 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-self.package = 'rubymail'
-self.version = '0.17'
-
-def src_wanted(file_name)
-  elements = File.elements(file_name)
-  if %w{ tests guide doc lib }.include?(elements[0])
-    return true
-  end
-  if elements.length == 1 and
-      %w{ NEWS NOTES README THANKS TODO install.rb }.include?(elements[0])
-    return true
-  end
-  return false
-end
-
-def srcdir_pre_copy_hook
-  today = Time.now.strftime('%Y-%m-%d')
-  unless IO.readlines('NEWS').first =~
-      /= Changes in RubyMail #{version} \(released #{today}\)$/
-    fail "NEWS isn't updated with current version or date"
-  end
-
-  unless system("./makedoc #{version}")
-    fail "can't create documentation"
-  end
-end
-
 def distdir_post_dist_hook
   unless system("ruby1.6 tests/runtests.rb")
     fail "ruby 1.6 failed tests"
@@ -65,29 +38,7 @@ def distdir_post_dist_hook
   # FIXME: run an HTML link checker on the docs here...
 end
 
-def srcdir_post_dist_hook
-  File.cleandir('doc')
-end
-
 def tarball_hook(tarball_name)
-
-  status = IO.popen("bk status -v", "r") { |f| f.readlines }
-  status = status.delete_if { |l|
-    l =~ /^(User:|Status for|BitKeeper|Built|Parent|User)/
-  }
-  unless status.empty?
-    puts status
-    puts "Not everything is checked in."
-    puts "Skipping WWW update."
-    return
-  end
-
-  tags = `bk changes -r+ -d:TAG:`.split(/\s+/)
-  unless tags.include?("release-#{version}")
-    puts "Last bk changeset isn't tagged with release-#{version}."
-    puts "Skipping WWW update."
-    return
-  end
 
   www_dir = '/home/website/public_html/rubymail'
   download_dir = File.join(www_dir, 'download')

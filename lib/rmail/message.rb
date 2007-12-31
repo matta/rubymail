@@ -1,6 +1,5 @@
 #--
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights
-#   reserved.
+#   Copyright (C) 2001-2005 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -28,6 +27,7 @@
 # Implements the RMail::Message class.
 
 require 'rmail/header.rb'
+require 'rmail/exception.rb'
 
 module RMail
 
@@ -62,13 +62,17 @@ module RMail
     # If #multipart? returns true, it will be an array of
     # RMail::Message objects.  Otherwise it will be a String.
     #
+    # When the message is created with the RubyMail parser, single
+    # part messages will return a RMail::Substring for the body
+    # data, not a String.
+    #
     # See also #header.
     def body
       return @body
     end
 
     # Sets the body of the message to the given value.  It should
-    # either be a String or an Array of RMail:Message objects.
+    # either be a String or an Array of RubyMail:Message objects.
     def body=(s)
       @body = s
     end
@@ -98,25 +102,40 @@ module RMail
       end
     end
 
+    # This is the exception class thrown when we are not able to
+    # decode a message part in RMail::Message#decode.
+    class DecodeError < RubyMailError; end
+
     # Decode the body of this message.
     #
     # If the body of this message is encoded with
     # <tt>quoted-printable</tt> or <tt>base64</tt>, this function will
     # decode the data into its original form and return it as a
-    # String.  If the body is not encoded, it is returned unaltered.
+    # String.  If the encoding method is unknown, we raise
+    # DecodeError.  If the body is not encoded, it is returned
+    # unaltered.
     #
     # This only works when the message is not a multipart.  The
     # <tt>Content-Transfer-Encoding:</tt> header field is consulted to
     # determine the encoding of the body part.
     def decode
       raise TypeError, "Can not decode a multipart message." if multipart?
-      case header.fetch('content-transfer-encoding', '7bit').strip.downcase
+      encoding = header.fetch('content-transfer-encoding',
+                              '7bit').strip.downcase
+      case encoding
       when 'quoted-printable'
-        Utils.quoted_printable_decode(@body)
+        Utils.decode_quoted_printable(@body)
       when 'base64'
-        Utils.base64_decode(@body)
-      else
+        Utils.decode_base64(@body)
+      when 'uuencode', 'x-uuencode'
+        # Not an RFC specified encoding, but it is seen in the wild so
+        # we deal with it.
+        Utils.decode_uuencoded(@body)
+      when '7bit', '8bit', 'binary'
         @body
+      else
+        raise DecodeError,
+          "Unsupported Content-Transfer-Encoding #{encoding}"
       end
     end
 
@@ -150,9 +169,10 @@ module RMail
     #
     # FIXME: not tested
     def each_part
-      raise TypeError, "not a multipart message" unless multipart?
-      @body.each do |part|
-        yield part
+      if multipart?
+        @body.each do |part|
+          yield part
+        end
       end
     end
 
@@ -177,7 +197,7 @@ module RMail
       raise ArgumentError, "delimiter array wrong size" unless
         delimiters.length == @body.length + 1
       @delimiters = delimiters.to_ary
-      @delimiters_boundary = boundary.to_str
+      @delimiters_boundary = boundary.to_s
     end
 
     # This is used by the serializing functions to retrieve the MIME
@@ -195,6 +215,21 @@ module RMail
         @delimiters_boundary = nil
       end
       [ @delimiters, @delimiters_boundary ]
+    end
+
+    # Return the raw entity data for this entire message, or nil if it
+    # was not set on the message.
+    def raw_entity
+      if @raw_entity
+        @raw_entity.to_str
+      else
+        nil
+      end
+    end
+
+    # Set the raw entity data for this entire message.
+    def raw_entity=(data)
+      @raw_entity = data
     end
 
   end

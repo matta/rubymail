@@ -1,7 +1,38 @@
 In rough priority order...but please let me know if something you need
 is missing.
 
+= MUST FIX BEFORE RELEASE
+
+- Update the README (status, versioning, etc.)
+
+- Document "selling points"
+
+  - Exception safety.
+  - Parse transparency (crypto, etc.).
+
+= EVENTUALLY
+
+- Look at introducing a subclass of PushbackReader that provides #pos,
+  so Normalizeeolreader doesn't need to.
+
+- Look at getting rid of NormalizeEOLReader in favor of parsing \r\n
+  directly.  This will make it easier to preserve message transparency
+  100%.
+
+- Look at having Header::Field objects use substrings for 100%
+  transparency.
+
+- What happens when parsing a message and you get two From_ lines?
+
+- Revert name change back to RMail and RFilter modules.
+
 = FIXME
+
+- rakefile enforces NEWS update
+
+- port rest of dist_config.rb to Rakefile
+
+- get 'test' target working in the gem
 
 - StreamHandler should get preamble_begin and preamble_end callbacks.
   Same for epilogue_begin, epilogue_end.
@@ -25,10 +56,14 @@ is missing.
 - RFC2231
   http://mail.python.org/pipermail/email-sig/2003-November/000032.html
 
+- Handle charset issues in headers.
+
+  - See MailParser and TMail for example API and implementation ideas.
+
 - Smart handling of charset issues for text/ types.
 
   [Goal] allow setting the body part to a given piece of data, and
-         RMail handles setting the appropriate MIME headers.  This
+         RubyMail handles setting the appropriate MIME headers.  This
          requires the data to have a known charset.
 
   Maybe this plays into the encoding solution below.
@@ -36,21 +71,21 @@ is missing.
 - Base64 and quoted-printable encoding
 
   [Goal] allow setting the body part to a given piece of data, and
-         RMail handles setting the appropriate MIME headers and
+         RubyMail handles setting the appropriate MIME headers and
          possibly quoted-printable or base64 transcoding it if
          appropriate.
 
-  This may be best done by introducing an RMail::TransferEncodedString
+  This may be best done by introducing an RubyMail::TransferEncodedString
   class that knows whether it is transcoded as binary,
-  quoted-printable, base64, etc.  You would set RMail::Message#body to
-  a TransferEncodedString and RMail::Message would set the appropriate
+  quoted-printable, base64, etc.  You would set RubyMail::Message#body to
+  a TransferEncodedString and RubyMail::Message would set the appropriate
   MIME headers.  If at serialization time the message body were set to
-  a plain String, then RMail::Message would transcode it into base64.
+  a plain String, then RubyMail::Message would transcode it into base64.
 
-- An RMail::Message#attach method that takes care of setting
+- An RubyMail::Message#attach method that takes care of setting
   content-disposition, etc.
 
-- Header folding in RMail::Header.
+- Header folding in RubyMail::Header.
 
 - A small wrapper around Net::SMTP#send_mail that takes care of:
   - parsing recipients out of the various message headers
@@ -59,7 +94,7 @@ is missing.
 
 - Provide a way to parse just the message headers, leaving the rest in
   the input stream (for use by RubyFilter).  This also implies a
-  feature that parses a message body given a RMail::Header object and
+  feature that parses a message body given a RubyMail::Header object and
   an input stream.  This should be easy -- read line by line until you
   get an empty line or EOF, then pass that off to parse_header as a
   string to be parsed.  Parsing the body can just use a
@@ -87,7 +122,7 @@ is missing.
 
   This may require extensions to header parsing, where things like the
   important MIME header fields can be parsed without creating a whole
-  RMail::Header object.
+  RubyMail::Header object.
 
 = Minor Features
 

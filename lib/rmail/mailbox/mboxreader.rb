@@ -24,7 +24,8 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #++
-# Implements the RMail::Mailbox::MBoxReader class.
+# Implements the RMail::Mailbox::MBoxReader class.  See the class'
+# documentation for more details.
 
 require 'rmail/parser/pushbackreader'
 

@@ -1,5 +1,5 @@
 #--
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights
+#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights
 #   reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,27 +53,24 @@ module RMail
 
       @local = @domain = @comments = @display_name = nil
 
-      if string.kind_of?(String)
-	addrs = Address.parse(string)
-	if addrs.length > 0
-	  @local = addrs[0].local
-	  @domain = addrs[0].domain
-	  @comments = addrs[0].comments
-	  @display_name = addrs[0].display_name
+      unless string.nil?
+        addrs = Address.parse(string)
+        if addrs.length > 0
+          @local = addrs[0].local
+          @domain = addrs[0].domain
+          @comments = addrs[0].comments
+          @display_name = addrs[0].display_name
         end
-      else
-	raise ArgumentError unless string.nil?
       end
     end
 
     # Compare this address with another based on the email address
     # portion only (any display name and comments are ignored).  If
-    # the other object is not an RMail::Address, it is coerced into a
-    # string with its to_str method and then parsed into an
-    # RMail::Address object.
+    # the other object is not an RMail::Address, it is passed to
+    # RMail::Address#initialize and parsed into an RMail::Address.
     def <=>(other)
       if !other.kind_of?(RMail::Address)
-	other = RMail::Address.new(other.to_str)
+	other = RMail::Address.new(other)
       end
       cmp = (@local || '') <=> (other.local || '')
       if cmp == 0
@@ -92,10 +89,10 @@ module RMail
 
     # Return true if the two objects are equal.  Do this based solely
     # on the email address portion (any display name and comments are
-    # ignored).  Fails if the other object is not an RMail::Address
-    # object.
+    # ignored).  Always returns false if the other object is not a
+    # RMail::Address object.
     def eql?(other)
-      raise TypeError unless other.kind_of?(RMail::Address)
+      return false unless other.kind_of?(RMail::Address)
       @local.eql?(other.local) and @domain.eql?(other.domain)
     end
 
@@ -232,7 +229,7 @@ module RMail
 		  @local =~ /^\./ ||
 		  @local =~ /\.$/ ||
 		  @local =~ /\.\./)
-		'"' + @local.gsub(/["\\]/, '\\\\\&') + '"'
+		'"' + @local.to_s.gsub(/["\\]/, '\\\\\&') + '"'
 	      else
 		@local
 	      end
@@ -267,7 +264,7 @@ module RMail
     end
 
     # Addresses can be converted into strings.
-    alias :to_str :format
+    alias :to_s :format
 
     # This class provides a facility to parse a string containing one
     # or more RFC2822 addresses into an array of RMail::Address
@@ -703,7 +700,7 @@ module RMail
             @string = $'	# garbage
 	    error('garbage character in string')
           else
-            raise "internal error, @string is #{@string.inspect}"
+            raise ArgumentError, "@string is #{@string.inspect} (a #{@string.class}) and does not seem to match any expected regular expression"
           end
         }
         if @sym

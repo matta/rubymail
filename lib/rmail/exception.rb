@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,27 +24,15 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RubyMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
 
-# The RubyMail module contains all of the RubyMail classes, but has no
-# useful API of its own.
-#
-# See guide/Intro.txt for a general overview of RubyMail.
-module Rmail
+module RMail
+
+  # This is the base class for all RubyMail exceptions.
+  #
+  # RubyMail code does raise other standard exceptions, such as
+  # TypeError, ArgumentError, etc.  These may be raised explicitly by
+  # RubyMail code, or by the standard modules and classes RubyMail
+  # uses.  But usually these exceptions indicate a coding error.
+  class RubyMailError < StandardError; end
+
 end
-
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'

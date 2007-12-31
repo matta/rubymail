@@ -23,3 +23,18 @@ Booker Bense <bbense-at-SLAC-dot-Stanford-dot-EDU>
 
 - For prodding me to implement mbox mailbox parsing (and an initial
   implementation).  It took me months, but I did it!
+
+Thanks to Mail::Audit for:
+
+- Showing that reasonable mail filters can be written in a scripting
+  language.
+
+Thanks to TMDA for:
+
+- Showing that an aggressive SPAM heuristic coupled with a
+  confirmation system is an effective technique for reducing SPAM.
+- The idea of tacking on an HMAC to address extensions
+  (Mail::AddressTagger).
+
+Joakim Andersson - Initial implementation of the filter method.
+Pavel Kolar - bug report (1.8.0 incompatability)

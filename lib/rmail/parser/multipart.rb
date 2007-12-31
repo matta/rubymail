@@ -46,13 +46,16 @@ module RMail
       # either a string of bytes read or nil if there are no more
       # bytes to read.
       #
+      # +initial_pos+ is the position within the +input+ stream that
+      # we are parsing.
+      #
       # +boundary+ is the string boundary that separates the parts,
       # without the "--" prefix.
       #
       # This class is a suitable input source when parsing recursive
       # multiparts.
-      def initialize(input, boundary)
-        super(input)
+      def initialize(input, initial_pos, boundary)
+        super(input, initial_pos)
         escaped = Regexp.escape(boundary)
         @delimiter_re = /(?:\G|\n)--#{escaped}(--)?\s*?(\n|\z)/
         @might_be_delimiter_re = might_be_delimiter_re(boundary)
@@ -203,6 +206,25 @@ module RMail
       # part just read.  This is cleared by #next_part.
       def delimiter
         @delimiter
+      end
+
+      def pos
+        pos = super
+        @chunks.each { |chunk|
+          if chunk[0]
+            pos -= chunk[0].length
+          end
+          if chunk[1]
+            pos -= chunk[1].length
+          end
+        }
+        if @caryover
+          pos -= @caryover.length
+        end
+        if @delimiter
+          pos -= @delimiter.length
+        end
+        return pos
       end
 
       private
