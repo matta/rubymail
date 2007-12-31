@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2004, 2007 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -84,7 +84,7 @@ class TestRMailHeader < TestBase
     # Test that passing in symbols will not get converted into strings
     # strings
     h = RMail::Header.new
-    assert_exception(NO_METHOD_ERROR) {
+    assert_raise(NO_METHOD_ERROR) {
       h[:Kelly] = :the_value
     }
 
@@ -140,6 +140,13 @@ class TestRMailHeader < TestBase
     assert(! (h1 == Array.new))
   end
 
+  def test_address_list_fetch
+    h = RMail::Header.new
+    assert_equal([], h.address_list_fetch("From"))
+    h.add("From", "bob@example.com")
+    assert_equal(["bob@example.com"], h.address_list_fetch("From"))
+  end
+
   def test_add
     #
     # Test that the object stores the exact objects we pass it in (at
@@ -173,7 +180,7 @@ class TestRMailHeader < TestBase
 
     # Test that passing in symbol values raises an exception
     h = RMail::Header.new
-    assert_exception(NO_METHOD_ERROR) {
+    assert_raise(NO_METHOD_ERROR) {
       assert_same(h, h.add("bob", :the_value))
     }
 
@@ -277,7 +284,7 @@ class TestRMailHeader < TestBase
     # Make sure singleton methods are not carried over through a dup
     def h1.my_singleton_method
     end
-    assert_respond_to(:my_singleton_method, h1)
+    assert_respond_to(h1, :my_singleton_method)
     h2 = h1.dup
     assert(! h2.respond_to?(:my_singleton_method))
   end
@@ -315,10 +322,10 @@ class TestRMailHeader < TestBase
     h1 = RMail::Header.new
     def h1.my_singleton_method
     end
-    assert_respond_to(:my_singleton_method, h1)
+    assert_respond_to(h1, :my_singleton_method)
     h2 = h1.clone
     assert(!h1.equal?(h2))
-    assert_respond_to(:my_singleton_method, h2)
+    assert_respond_to(h2, :my_singleton_method)
   end
 
   def test_replace
@@ -337,7 +344,7 @@ class TestRMailHeader < TestBase
     assert_same(h1['To'], h2['To'])
     assert_same(h1.mbox_from, h2.mbox_from)
 
-    e = assert_exception(TypeError) {
+    e = assert_raise(TypeError) {
       h2.replace("hi mom")
     }
     assert_equal('String is not of type RMail::Header', e.message)
@@ -357,15 +364,15 @@ class TestRMailHeader < TestBase
   def test_delete_at
     h = RMail::Header.new
     h['Foo'] = 'bar'
-    h['Bazo'] = 'bingo'
+    h['Baz'] = 'bingo'
     h['Foo'] =  'yo'
     assert_same(h, h.delete_at(1))
-    assert_nil(h['Bazo'])
+    assert_equal(2, h.length)
+    assert_nil(h['Baz'])
     assert_equal('bar', h[0])
     assert_equal('yo', h[1])
-    assert_equal(2, h.length)
 
-    assert_exception(TypeError) {
+    assert_raise(TypeError) {
       h.delete_at("1")
     }
   end
@@ -373,14 +380,14 @@ class TestRMailHeader < TestBase
   def test_delete_if
     h = RMail::Header.new
     h['Foo'] = 'bar'
-    h['Bazo'] = 'bingo'
+    h['Baz'] = 'bingo'
     h['Foo'] =  'yo'
     assert_same(h, h.delete_if { |n, v| v =~ /^b/ })
-    assert_nil(h['Bazo'])
+    assert_nil(h['Baz'])
     assert_equal('yo', h['Foo'])
     assert_equal(1, h.length)
 
-    assert_exception(LocalJumpError) {
+    assert_raise(LocalJumpError) {
       h.delete_if
     }
   end
@@ -397,7 +404,7 @@ class TestRMailHeader < TestBase
       i += 1
     }
 
-    assert_exception(LocalJumpError) {
+    assert_raise(LocalJumpError) {
       h.send(method)
     }
   end
@@ -421,7 +428,7 @@ class TestRMailHeader < TestBase
       i += 1
     }
 
-    assert_exception(LocalJumpError) {
+    assert_raise(LocalJumpError) {
       h.send(method)
     }
   end
@@ -445,7 +452,7 @@ class TestRMailHeader < TestBase
       i += 1
     }
 
-    assert_exception(LocalJumpError) {
+    assert_raise(LocalJumpError) {
       h.each_value
     }
   end
@@ -466,7 +473,7 @@ class TestRMailHeader < TestBase
     assert_equal(1, h.fetch('notthere', 1))
     assert_equal(2, h.fetch('notthere', 1) { 2 })
 
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.fetch(1,2,3)
     }
     assert_equal('wrong # of arguments(3 for 2)', e.message)
@@ -482,7 +489,7 @@ class TestRMailHeader < TestBase
     assert_equal(1, h.fetch('notthere', 1))
     assert_equal(2, h.fetch('notthere', 1) { 2 })
 
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.fetch_all(1,2,3)
     }
     assert_equal('wrong # of arguments(3 for 2)', e.message)
@@ -515,12 +522,18 @@ class TestRMailHeader < TestBase
     field_helper(:key?)
   end
 
+  def test_select_on_empty_header_returns_empty_array
+    h = RMail::Header.new
+    assert_equal([], h.select("From"))
+  end
+
   def test_select
     h = RMail::Header.new
     h['To'] = 'matt@example.net'
     h['From'] = 'bob@example.net'
     h['Subject'] = 'test_select'
-
+    assert_equal([ [ 'To', 'matt@example.net' ] ],
+                 h.select('To'))
     assert_equal([ [ 'To', 'matt@example.net' ],
                    [ 'From', 'bob@example.net' ] ],
                  h.select('To', 'From'))
@@ -620,33 +633,38 @@ EOF
   # Compare header contents against an expected result. 'result'
   # should be an array of arrays, with the first element being the
   # required key name and the second element being the whole line.
-  def compare_header(header, result)
-    index = -1
+  def compare_header(header, expected)
+    testcase_desc = "TestCase header: #{header.inspect} " +
+      "expected result: #{expected.inspect}"
+    count = 0
     header.each_with_index { |value, index|
-      assert_operator(index, '<', result.length,
-		      "result has too few elements")
-      assert_operator(2, '<=', result[index].length,
-		      "Expected result item must have at last two elements.")
-      assert_operator(3, '>=', result[index].length,
+      count = count.succ
+      assert_operator(index, '<', expected.length,
+		      "result has too few elements. #{testcase_desc}")
+      assert_operator(2, '<=', expected[index].length,
+		      "Expected result item must have at last two elements. " +
+                      testcase_desc)
+      assert_operator(3, '>=', expected[index].length,
 		      "Expected result item must have no more than three " +
-		      "elements.")
-      assert_equal(2, value.length)
+		      "elements.  " + testcase_desc)
+      assert_equal(2, value.length, testcase_desc)
 
-      expected_tag, expected_header = result[index]
+      expected_tag, expected_header = expected[index]
       got_tag, got_header = value
 
-      assert_equal(header[index], got_header)
+      assert_equal(header[index], got_header, testcase_desc)
 
       assert_equal(expected_tag, got_tag,
-		   "field #{index} has incorrect name")
+		   "field #{index} has incorrect name.  " + testcase_desc)
       assert_equal(expected_header, got_header,
 		   "field #{index} has incorrect line, " +
 		   "expected #{expected_header.inspect} got " +
-		   "#{got_header.inspect}")
-      assert_equal(header[expected_tag], expected_header)
+		   "#{got_header.inspect}.  " + testcase_desc)
+      assert_equal(header[expected_tag], expected_header, testcase_desc)
     }
-    assert_equal(index + 1, result.length,
-	   "result has too few elements (#{index} < #{result.length})")
+    assert_equal(count, expected.length,
+                 "result has too few elements " +
+                 "(#{count} < #{expected.length}).  " + testcase_desc)
   end
 
   def verify_match(header, name, value, expected_result)
@@ -668,24 +686,24 @@ EOF
     h['Subject'] = 'yoda lives!'
 
     # First verify argument type checking
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.match(12, "foo")
     }
     assert_match(/name not a Regexp or String/, e.message)
-    assert_no_exception {
+    assert_nothing_raised {
       h.match(/not_case_insensitive/, "foo")
     }
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.match(/this is okay/i, 12)
     }
     assert_match(/value not a Regexp or String/, e.message)
-    assert_no_exception {
+    assert_nothing_raised {
       h.match(/this is okay/i, /this_not_multiline_or_insensitive/)
     }
-    assert_no_exception {
+    assert_nothing_raised {
       h.match(/this is okay/i, /this_not_multiline/i)
     }
-    assert_no_exception {
+    assert_nothing_raised {
       h.match(/this is okay/i, /this_not_inesnsitive/m)
     }
 
@@ -716,24 +734,24 @@ EOF
     h['Subject'] = "yoda\n lives! [bob]\\s"
 
     # First verify argument type checking
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.match?(12, "foo")
     }
     assert_match(/name not a Regexp or String/, e.message)
-    assert_no_exception {
+    assert_nothing_raised {
       h.match?(/not_case_insensitive/, "foo")
     }
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       h.match?(/this is okay/i, 12)
     }
     assert_match(/value not a Regexp or String/, e.message)
-    assert_no_exception {
+    assert_nothing_raised {
       h.match?(/this is okay/i, /this_not_multiline_or_insensitive/)
     }
-    assert_no_exception {
+    assert_nothing_raised {
       h.match?(/this is okay/i, /this_not_multiline/i)
     }
-    assert_no_exception {
+    assert_nothing_raised {
       h.match?(/this is okay/i, /this_not_inesnsitive/m)
     }
 
@@ -913,7 +931,7 @@ EOF
 	  end
 	}.to_s ]
       strings.each {|string|
-	assert_no_exception("failed for string #{string.inspect}") {
+	assert_nothing_raised("failed for string #{string.inspect}") {
           h = RMail::Header.new
           h['header'] = string
           params = h.params('header')
@@ -999,7 +1017,7 @@ EOF
       h = RMail::Header.new
       # This one is bogus and can't even be parsed.
       h.add_raw("Date: 21/01/2002 09:29:33 Pacific Daylight Time")
-      t = assert_no_exception {
+      t = assert_nothing_raised {
         h.date
       }
       assert_nil(t)
@@ -1010,7 +1028,7 @@ EOF
       # This time is out of the range that can be represented by a
       # Time object.
       h.add_raw("Date: Sun, 14 Jun 2065 05:51:55 +0200")
-      t = assert_no_exception {
+      t = assert_nothing_raised {
         h.date
       }
       assert_nil(t)

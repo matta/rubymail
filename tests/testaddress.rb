@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2007 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ class TestRMailAddress < TestBase
   def validate_method(object, method, *args)
     assert(method_list.include?(method),
 	   "#{method.inspect} not in #{method_list.inspect}")
-    assert_respond_to(method, object)
+    assert_respond_to(object, method)
     ret = nil
     ret = object.send(method, *args)
     if block_given?
@@ -1079,7 +1079,7 @@ class TestRMailAddress < TestBase
 	  end
 	}.to_s ]
       strings.each {|string|
-	assert_no_exception("failed for string #{string.inspect}") {
+	assert_nothing_raised("failed for string #{string.inspect}") {
 	  addrs = RMail::Address.parse(string)
 	  addrs.each {|address|
 	    method_list.each {|method|
@@ -1117,13 +1117,13 @@ class TestRMailAddress < TestBase
     assert_equal(nil, addr.domain)
     assert_equal(nil, addr.local)
 
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       RMail::Address.new(["bob"])
     }
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       RMail::Address.new(Object.new)
     }
-    e = assert_exception(ArgumentError) {
+    e = assert_raise(ArgumentError) {
       RMail::Address.new(Hash.new)
     }
   end
@@ -1176,13 +1176,13 @@ class TestRMailAddress < TestBase
     assert(a1.eql?(a2))
 
     a1 = RMail::Address.new("Zeus <bob@example.com>")
-    assert_exception(TypeError) {
+    assert_raise(TypeError) {
       a1.eql?("bob@eaxample.com")
     }
   end
 
   def test_rmail_address_hash
-    assert_no_exception {
+    assert_nothing_raised {
       RMail::Address.new.hash
     }
     a1 = RMail::Address.new("Zeus <bob@example.com>")

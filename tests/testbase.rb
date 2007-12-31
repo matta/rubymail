@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2007 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -27,18 +27,18 @@
 
 # Base for all the test cases, providing a default setup and teardown
 
-require 'rubyunit'
+require 'test/unit'
 require 'rbconfig.rb'
 require 'tempfile'
 require 'find'
-require 'ftools'
+require 'fileutils'
 
 begin
   require 'pp'
 rescue LoadError
 end
 
-class TestBase < RUNIT::TestCase
+class TestBase < Test::Unit::TestCase
   include Config
 
   attr_reader :scratch_dir
@@ -49,6 +49,10 @@ class TestBase < RUNIT::TestCase
 		    else
 		      NameError
 		    end
+
+  def test_nothing
+    assert(true)  # Appease Test::Unit
+  end
 
   # Print a string to a temporary file and return the file opened.
   # This lets you have some test data in a string, but access it with

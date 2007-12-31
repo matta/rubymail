@@ -162,7 +162,7 @@ Second body line
     qp_message.body = qp_data
     message.add_part(qp_message)
 
-    e = assert_exception(TypeError) {
+    e = assert_raise(TypeError) {
       message.decode
     }
     assert_equal('Can not decode a multipart message.', e.message)
@@ -180,7 +180,7 @@ Second body line
   def test_part
     message = RMail::Message.new
 
-    e = assert_exception(TypeError) {
+    e = assert_raise(TypeError) {
       message.part(0)
     }
     assert_equal('Can not get part on a single part message.', e.message)

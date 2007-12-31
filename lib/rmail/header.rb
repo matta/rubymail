@@ -263,7 +263,7 @@ module RMail
 
     # Deletes the field at the specified index and returns its value.
     def delete_at(index)
-      @fields[index, 1] = nil
+      @fields.delete_at(index)
       self
     end
 
@@ -282,7 +282,7 @@ module RMail
     # Returns self.
     def each                    # yields: name, value
       @fields.each { |i|
-        yield(i.name, i.value)
+        yield [i.name, i.value]
       }
     end
     alias each_pair each
@@ -832,14 +832,8 @@ module RMail
     # of this message.  This uses the contents of the To, Cc, and Bcc
     # fields.  Duplicate addresses are eliminated.
     def recipients
-      retval = RMail::Address::List.new
-      retval.concat(to)
-      retval.concat(cc)
-      retval.concat(bcc)
-      retval.uniq
+      RMail::Address::List.new([ to, cc, bcc ].flatten.uniq)
     end
-
-#    recipients
 
     # Retrieve a given field's value as an RMail::Address::List of
     # RMail::Address objects.

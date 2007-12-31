@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2007 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -27,7 +27,6 @@
 
 # Test the TestBase class itself
 
-require 'rubyunit'
 require 'tests/testbase.rb'
 
 class TestTestBase < TestBase
@@ -73,7 +72,12 @@ class TestTestBase < TestBase
   end
 
   def verify_scratch_dir_name(dir)
-    assert_match(/scratch.*TestTestBase.*test/, dir)
+    assert_match(/_scratch.*TestTestBase/, dir)
+  end
+
+  def test_name
+    assert_match(/\btest_name\b/, name)
+    assert_match(/\bTestTestBase\b/, name)
   end
 
   def test_scratch_dir

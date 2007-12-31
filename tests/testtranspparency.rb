@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002, 2007 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ class TestRMailTransparency < TestBase
       pp message2
       puts "-" * 70
     end
-    assert(File.compare(full_name, scratch_name),
+    assert(FileUtils.compare_file(full_name, scratch_name),
            "parse->serialize failure transparency #{file}")
     assert_equal(message1, message2,
                  "parse->serialize->parse transparency failure #{file}")

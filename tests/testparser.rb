@@ -333,7 +333,7 @@ It DOES end with a linebreak.
       m = nil
       data_as_file('parser.badmime1') do |f|
         p.chunk_size = size
-        assert_no_exception("failed for chunk size #{size.to_s}") {
+        assert_nothing_raised("failed for chunk size #{size.to_s}") {
           m = p.parse(f)
         }
       end
@@ -347,7 +347,7 @@ It DOES end with a linebreak.
       m = nil
       data_as_file('parser.badmime2') do |f|
         p.chunk_size = size
-        assert_no_exception("failed for chunk size #{size.to_s}") {
+        assert_nothing_raised("failed for chunk size #{size.to_s}") {
           m = p.parse(f)
         }
       end

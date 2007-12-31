@@ -32,7 +32,7 @@ class TextRMailParserPushbackReader < TestBase
 
   def test_pushback
     reader = RMail::Parser::PushbackReader.new("")
-    assert_exception(RMail::Parser::Error) {
+    assert_raise(RMail::Parser::Error) {
       reader.pushback("hi bob")
     }
   end
