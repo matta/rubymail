@@ -1,4 +1,4 @@
-= Changes in RubyMail 1.0.0 (released 2008-01-XX)
+= Changes in RubyMail 1.0.0 (released 2008-01-05)
 
 - This version differs *only* in the changes required for Ruby 1.9
   support.  It is otherwise "bug compatible" with version 0.17.  Users
