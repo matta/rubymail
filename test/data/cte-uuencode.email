@@ -1,0 +1,34 @@
+Enter text of main message ( finish with CTRL-D ) ...
+From: matt
+Subject: hi
+To: foo@example.net
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="DMW.Boundary.605592468"
+
+This is a Mime message, which your mail program may not understand. Parts
+of the message will appear as text. If the remainder appears as random
+characters in the message body, instead of as attachments, then you'll
+have to extract these parts and decode them manually.
+
+--DMW.Boundary.605592468
+Content-Type: text/plain; name="message.txt"; charset=US-ASCII
+Content-Disposition: inline; filename="message.txt"
+Content-Transfer-Encoding: 7bit
+
+This is a test message.
+--DMW.Boundary.605592468
+Content-Type: application/octet-stream; name="rubymail-0.17-patch"
+Content-Disposition: attachment; filename="rubymail-0.17-patch"
+Content-Transfer-Encoding: uuencode
+
+buncha garbage
+
+
+begin 644 hi-mom
+(2&D@;6]M(0H`
+`
+end
+
+buncha garbage
+
+--DMW.Boundary.605592468--

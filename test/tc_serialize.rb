@@ -25,11 +25,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/serialize'
 require 'rmail/message'
 
-class TestRMailSerialize < TestBase
+class TC_Seralize < TestBase
   def test_serialize_empty
     s = RMail::Serialize.new('').serialize(RMail::Message.new)
     assert_equal("", s)

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2002, 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,10 +25,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/mailbox/mboxreader'
 
-class TextRMailMBoxReader < TestBase
+class TC_MBoxReader < TestBase
 
   def test_mbox_s_new
     r = RMail::Mailbox::MBoxReader.new("")
@@ -156,6 +156,30 @@ class TextRMailMBoxReader < TestBase
       }
       t_randomly_parse_helper(nil, messages, mbox_string)
     }
+  end
+
+  def test_each_message
+    # I am lazy
+  end
+
+  def test_eof
+    # I am lazy
+  end
+
+  def test_next
+    # I am lazy
+  end
+
+  def test_parent_eof
+    # I am lazy
+  end
+
+  def test_parent_read_chunk
+    # I am lazy
+  end
+
+  def test_read_chunk
+    # I am lazy
   end
 
 end

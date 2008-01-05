@@ -1,23 +1,23 @@
-Return-Path: <matt@lickey.com>
-Delivered-To: matt@lickey.com
+Return-Path: <matt@rfc20.org>
+Delivered-To: matt@rfc20.org
 Received: from localhost (localhost [127.0.0.1])
-	by squeaker.lickey.com (Postfix) with ESMTP id 78B08C0BE
-	for <matt@lickey.com>; Thu,  7 Feb 2002 19:35:13 -0700 (MST)
-Received: by squeaker.lickey.com (Postfix, from userid 1000)
+	by squeaker.rfc20.org (Postfix) with ESMTP id 78B08C0BE
+	for <matt@rfc20.org>; Thu,  7 Feb 2002 19:35:13 -0700 (MST)
+Received: by squeaker.rfc20.org (Postfix, from userid 1000)
 	id 52497BE6D; Thu,  7 Feb 2002 19:35:12 -0700 (MST)
-To: matt@lickey.com
+To: matt@rfc20.org
 Subject: Some nested multiparts
-From: Matt Armstrong <matt@lickey.com>
+From: Matt Armstrong <matt@rfc20.org>
 Date: Thu, 07 Feb 2002 19:35:11 -0700
 X-Gnus-Mail-Source: directory:~/.incoming
-Message-ID: <877kpolmzk.fsf@squeaker.lickey.com>
+Message-ID: <877kpolmzk.fsf@squeaker.rfc20.org>
 User-Agent: Gnus/5.090006 (Oort Gnus v0.06) Emacs/21.1
  (i386-debian-linux-gnu)
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 X-Virus-Scanned: by AMaViS snapshot-20010714
 Lines: 45
-Xref: squeaker.lickey.com inbox:7709
+Xref: squeaker.rfc20.org inbox:7709
 
 This is level 1's preamble.
 

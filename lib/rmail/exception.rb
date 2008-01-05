@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
+#--
+#   Copyright (c) 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,11 +25,14 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-fail "must run this script directly" unless __FILE__ == $0
-path = File.expand_path(File.join(File.dirname($0), '..', 'lib'))
-puts "Prepending #{path} to the $LOAD_PATH"
-$LOAD_PATH.unshift(path)        # get our stuff first
+module RMail
 
-Dir['tests/test*.rb'].each {|f|
-  require f
-}
+  # This is the base class for all RubyMail exceptions.
+  #
+  # RubyMail code does raise other standard exceptions, such as
+  # TypeError, ArgumentError, etc.  These may be raised explicitly by
+  # RubyMail code, or by the standard modules and classes RubyMail
+  # uses.  But usually these exceptions indicate a coding error.
+  class RubyMailError < StandardError; end
+
+end

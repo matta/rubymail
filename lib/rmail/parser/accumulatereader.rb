@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,27 +24,45 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
 
-# The RMail module contains all of the RMail classes, but has no
-# useful API of its own.
-#
-# See guide/Intro.txt for a general overview of RMail.
-module Rmail
+
+require 'rmail/parser/pushbackreader'
+require 'rmail/superstring'
+
+# A PushbackReader that accumulates everything it parses.
+class RMail::Parser::AccumulateReader < RMail::Parser::PushbackReader
+
+  # Create an AccumulateReader
+  def initialize(input)
+    super
+    @superstring = RMail::Superstring.new
+  end
+
+  # Return the accumulated data.  This consists of the concatenation
+  # of all chunks read from #read and #read_chunk, minus any string
+  # passed to #pushback.
+  def accumulated
+    @superstring.substring(0, @superstring.length)
+  end
+
+  def read_chunk(size)
+    chunk = super
+    @superstring << chunk if chunk
+    chunk
+  end
+
+  def pushback(string)
+    super
+    @superstring.truncate(@superstring.length - string.length)
+  end
+
+  def pos
+    @superstring.length
+  end
+
+  def substring(start, length)
+    @superstring.substring(start, length)
+  end
+
 end
 
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'

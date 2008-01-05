@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003, 2007 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,10 +25,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/address'
 
-class TestRMailAddress < TestBase
+class TC_Address < TestBase
 
   def domain_optional
     # Set to true for tests that include addresses without a domain
@@ -1117,13 +1117,19 @@ class TestRMailAddress < TestBase
     assert_equal(nil, addr.domain)
     assert_equal(nil, addr.local)
 
-    e = assert_raise(ArgumentError) {
+    address_new_exception = if RUBY_VERSION >= "1.7"
+                              ArgumentError
+                            else
+                              TypeError
+                            end
+
+    e = assert_raise(address_new_exception) {
       RMail::Address.new(["bob"])
     }
-    e = assert_raise(ArgumentError) {
+    e = assert_raise(address_new_exception) {
       RMail::Address.new(Object.new)
     }
-    e = assert_raise(ArgumentError) {
+    e = assert_raise(address_new_exception) {
       RMail::Address.new(Hash.new)
     }
   end
@@ -1137,7 +1143,7 @@ class TestRMailAddress < TestBase
     assert_equal([ 'foo' ], a.comments)
   end
 
-  def test_rmail_address_compare
+  def test_CMP # '<=>'
     a1 = RMail::Address.new
     a2 = RMail::Address.new
 
@@ -1163,30 +1169,138 @@ class TestRMailAddress < TestBase
     assert(a1 == "bob@example.com")
   end
 
-  def test_rmail_address_eql?
-    a1 = RMail::Address.new
-    a2 = RMail::Address.new
+  def test_eql?
+    begin
+      a1 = RMail::Address.new
+      a2 = RMail::Address.new
 
-    # Make sure it works on uninitialized addresses
-    assert(a1.eql?(a2))
+      # Make sure it works on uninitialized addresses
+      assert(a1.eql?(a2))
 
-    # Display name and comments make no difference
-    a1.display_name = 'foo'
-    a1.comments = 'bar'
-    assert(a1.eql?(a2))
-
-    a1 = RMail::Address.new("Zeus <bob@example.com>")
-    assert_raise(TypeError) {
-      a1.eql?("bob@eaxample.com")
-    }
+      # Display name and comments make no difference
+      a1.display_name = 'foo'
+      a1.comments = 'bar'
+      assert(a1.eql?(a2))
+    end
+    begin
+      a = RMail::Address.new("a@b.c")
+      b = RMail::Address.new("a@b.c")
+      assert(a.eql?(b))
+      assert(b.eql?(a))
+    end
+    begin
+      a = RMail::Address.new("a@b.c")
+      b = "a@b.c"
+      assert(!a.eql?(b))
+      assert(!b.eql?(a))
+    end
   end
 
-  def test_rmail_address_hash
+  def test_hash
     assert_nothing_raised {
       RMail::Address.new.hash
     }
     a1 = RMail::Address.new("Zeus <bob@example.com>")
     assert_equal(a1.hash, "bob@example.com".hash)
+  end
+
+  def test_address
+    begin
+      a = RMail::Address.new
+      a.local = "bob"
+      assert_equal("bob", a.address)
+    end
+    begin
+      a = RMail::Address.new
+      a.local = "bob"
+      a.domain = "example.net"
+      assert_equal("bob@example.net", a.address)
+    end
+  end
+
+  def test_comments_SET # 'comments='
+    begin
+      a = RMail::Address.new("a@b.c")
+      a.comments = 'hi'
+      assert_equal("a@b.c (hi)", a.format)
+    end
+    begin
+      a = RMail::Address.new("a@b.c")
+      a.comments = 'hi'
+      a.comments = nil
+      assert_equal("a@b.c", a.format)
+    end
+    begin
+      a = RMail::Address.new("a@b.c")
+      a.comments = [ 'a', 'b', '(', 'hi mom', ')' ]
+      assert_equal("a@b.c (a) (b) (\\() (hi mom) (\\))", a.format)
+    end
+  end
+
+  def test_display_name
+    begin
+      a = RMail::Address.new("a@b.c")
+      assert_nil(a.display_name)
+    end
+    begin
+      a = RMail::Address.new("John Doe <johnd@example.net>")
+      assert_equal("John Doe", a.display_name)
+    end
+    begin
+      a = RMail::Address.new("johnd@example.net (John Doe)")
+      assert_nil(a.display_name)
+    end
+  end
+
+  def test_display_name_SET # 'display_name='
+    begin
+      a = RMail::Address.new("a@b.c")
+      assert_nil(a.display_name)
+      assert_equal("a@b.c", a.format)
+      a.display_name = "Bob"
+      assert_equal("Bob", a.display_name)
+      assert_equal("Bob <a@b.c>", a.format)
+    end
+  end
+
+  def test_domain
+    begin
+      a = RMail::Address.new("a")
+      assert_nil(a.domain)
+    end
+    begin
+      a = RMail::Address.new("a@b.c")
+      assert_equal("b.c", a.domain)
+    end
+  end
+
+  def test_domain_SET # 'domain='
+    begin
+      a = RMail::Address.new("a")
+      a.domain = "b.c"
+      assert_equal("b.c", a.domain)
+      assert_equal("\"\"@b.c", a.format)
+    end
+  end
+
+  def test_format
+    # tested extensively elsewhere
+  end
+
+  def test_local
+    # tested extensively elsewhere
+  end
+
+  def test_local_SET # 'local='
+    # tested extensively elsewhere
+  end
+
+  def test_name
+    # tested extensively elsewhere
+  end
+
+  def test_to_s
+    # tested extensively elsewhere
   end
 
 end

@@ -77,7 +77,7 @@ module RMail
 
       class << self
         def parse(field)
-          field = field.to_str
+          field = field.to_s
           if field =~ EXTRACT_FIELD_NAME_RE
             [ $1, $'.chomp ]
           else
@@ -88,11 +88,11 @@ module RMail
 
       def initialize(name, value = nil)
         if value
-          @name = Field.name_strip(name.to_str).freeze
-          @value = Field.value_strip(value.to_str).freeze
+          @name = Field.name_strip(name.to_s).freeze
+          @value = Field.value_strip(value.to_s).freeze
           @raw = nil
         else
-          @raw = name.to_str.freeze
+          @raw = name.to_s.freeze
           @name, @value = Field.parse(@raw)
           @name.freeze
           @value.freeze
@@ -108,7 +108,7 @@ module RMail
       end
 
       def Field.name_canonicalize(name)
-        name_strip(name.to_str).downcase
+        name_strip(name.to_s).downcase
       end
 
       private
@@ -254,7 +254,7 @@ module RMail
 
     # Deletes all fields with +name+.  Returns self.
     def delete(name)
-      name = Field.name_canonicalize(name.to_str)
+      name = Field.name_canonicalize(name.to_s)
       delete_if { |n, v|
         n.downcase == name
       }
@@ -355,7 +355,7 @@ module RMail
     #
     # Always returns self.
     def add(name, value, index = nil, params = nil)
-      value = value.to_str
+      value = value.to_s
       if params
         value = value.dup
         sep = "; "
@@ -873,7 +873,7 @@ module RMail
           if e.kind_of?(RMail::Address)
             e.format
           else
-            RMail::Address.parse(e.to_str).collect { |a|
+            RMail::Address.parse(e.to_s).collect { |a|
               a.format
             }
           end
@@ -883,7 +883,7 @@ module RMail
         set(field_name, addresses.format)
       else
         address_list_assign(field_name,
-                            RMail::Address.parse(addresses.to_str))
+                            RMail::Address.parse(addresses.to_s))
       end
     end
 

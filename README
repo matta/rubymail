@@ -4,48 +4,127 @@ This is RubyMail, a lightweight mail library containing various
 utility classes and modules that allow Ruby scripts to parse,
 modify, and generate MIME mail messages.
 
+= Status
+
+This package works well and is seeing a number of mostly backward
+compatible changes.
+
+= Selling Points
+
+- Flexibility.  You can parse a message from a string or input stream.
+  You can create a message with code and make a string out of
+  it.  Accessing the message header is done with a class with methods
+  borrowed from both the Array and Hash class.  Multi-part MIME
+  messages are conveniently represented as a tree of RMail::Message
+  objects.
+
+- Correctness.  Adheres to all the relevant RFCs.
+
+  - Fully compliant RFC822/RFC2822 email address parser.
+  - Properly parses all legal MIME 1.0 documents, and even some
+    illegal ones.
+  - Generates unique Message-Id headers.
+  - Generates unique boundary strings.
+  - And a whole host of other things -- I have been very attentive to
+    the details because I trust my own mail to this library.
+
+- Transparency.  If you parse a message and then serialize it out into
+  a string, the exact original message is preserved (except for the
+  end of line convention -- it is converted to a simple "\n").  If you
+  modify part of a message, only the part you modify changes.  This
+  makes the library useful when you want to be able to do S/MIME or
+  Open PGP operations on the message.
+
+- Reliability.  An extensive unit test makes sure new things are
+  implemented correctly and old fixes stay fixed.  The library was
+  written from the ground up using "test first" techniques.  Test
+  coverage is very good.
+
+- Maturity.  Work on this library began in mid 2001.  I credit the
+  very slow trickle of bug reports to the extensive unit tests.
+  Instead, I mostly get feature requests and questions from people
+  trying to do something new.  Examples:
+
+  - Using RMail and net/pop3 to retrieve email from an ISP.
+  - Using RMail and net/smtp to send email.
+  - Using RMail in a production environment to process abuse@ email
+    for a smaller "country code" TLD registrar.
+
+  And who knows what else.  I am surprised every time I see RMail
+  used.  ;-)
+
+- Parsing efficiency.  I made the parser as efficient as I could.
+  Other mail libraries parse email line by line.  This is OK for most
+  short email, but the random email with a 10 megabyte attachment
+  parses very slowly this way.  Instead, RMail parses data in 16k
+  chunks, so large attachments are parsed efficiently.
+
+- Exception free parsing.  All possible inputs parse into something
+  sensible according to the relevant RFC standards.
+
+- Pure Ruby.  No pesky C extension helpers.
+
+= Weaknesses
+
+- No handling of character sets at all.  I think I lose most of Japan
+  with this one!  But you will be surprised how much useful stuff can
+  be done without parsing out all those funky MIME charset things you
+  see in message headers.
+
+- When parsing a 100 megabyte email, at least 100 megabytes of RAM is
+  used, since a parsed RMail::Message object keeps the entire
+  message in a string object.  Fortunately, only one copy is needed
+  (even for nested multipart messages), and RMail's "chunked"
+  parsing technique keeps parsing fast for huge messages.  Still,
+  depending on your requirements, this may disqualify RMail.
+
+- Documented in English only.
+
+- Poor "User Guide" and "Howto" documentation.
+
 = Requirements
 
-Ruby 1.6.7 (or newer) or Ruby 1.8.*.  Only tested under Linux, should
-be fine under any Unix.
+Ruby 1.8.x or newer running on Unix or Windows.  I bet it runs on
+other platforms too.
 
 = Documentation
 
-The documentation is in RDoc format in the doc subdirectory.  Aside
-from the API reference, you will be interested in guide/Intro.txt and
-guide/TableOfContents.txt.
+The documentation is available at http://www.rfc20.org/rubymail/
+Aside from the API reference, you will be interested in
+guide/Intro.txt and guide/TableOfContents.txt.
+
+The documentation is no longer provided in the .tgz or .zip releases.
+To build the documentation yourself, install the "rake" build tool and
+"rdoc" and then run the command:
+
+  rake rdoc
+
+And the documentation will be placed in the 'html' subdirectory.
 
 = Install
 
-Type the following while in the package directory:
+If you have rubygems installed (highly recommended), the installation
+command is as follows:
+
+  gem install rubymail
+
+Otherwise, type the following while in the package directory:
 
   ruby install.rb config
   ruby install.rb setup
   ruby install.rb install
 
-You may need special permissions to execute the last line.  If you
-want to just install RubyMail to a custom location, just copy the
-rmail subdirectory manually.
+You may need special permissions to execute the last line.
 
-= Status
-
-This package works well, but I consider all API subject to change.
-
-I very much appreciate suggestions and comments, but please think
-twice about using this for production use just yet.
-
-= Tests?
-
-This package has a complete unit test suite (requires RubyUnit to
-run).  Currently all of my e-mail is processed by this library.
+If you want to just install RMail to a custom location, you can just
+copy the lib/rmail subdirectory manually.
 
 = Why?
 
 It is fun.
 
-One use for RubyMail is the RubyFilter package, available at:
-
-    http://www.lickey.com/rubyfilter/
+I originally started this because I wanted an alternative to procmail
+that let me write a mail filter in a fully capable scripting language.
 
 = Alternatives
 
@@ -53,9 +132,11 @@ You might check out TMail as well.
 
 = Support
 
-To reach the author of RubyMail, send mail to matt@lickey.com.
+To reach the author of RMail, send mail to matt@rfc20.org.
 
 = License
+
+The license is the "modified BSD" license -- no advertising clause.
 
  Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights
  reserved.

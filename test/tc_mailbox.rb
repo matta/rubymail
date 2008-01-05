@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,27 +24,24 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
 
-# The RMail module contains all of the RMail classes, but has no
-# useful API of its own.
-#
-# See guide/Intro.txt for a general overview of RMail.
-module Rmail
-end
-
-require 'rmail/address'
-require 'rmail/header'
+require 'test/testbase'
 require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'
+
+class TC_Mailbox < TestBase
+  def test_parse_mbox_simple
+    expected = ["From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n",
+      "From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n",
+      "From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n"]
+    data_as_file("mbox.simple") { |f|
+      assert_equal(expected, RMail::Mailbox::parse_mbox(f))
+    }
+    data_as_file("mbox.simple") { |f|
+      messages = []
+      RMail::Mailbox::parse_mbox(f) { |m|
+        messages << m
+      }
+      assert_equal(expected, messages)
+    }
+  end
+end

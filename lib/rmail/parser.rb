@@ -1,5 +1,5 @@
 #--
-#   Copyright (C) 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002-2005 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,8 @@
 
 require 'rmail/message'
 require 'rmail/parser/multipart'
+require 'rmail/parser/normalizeeolreader'
+require 'rmail/parser/accumulatereader'
 
 module RMail
 
@@ -36,8 +38,8 @@ module RMail
   #
   # An RMail::StreamHandler documents the set of methods a
   # RMail::StreamParser handler must implement.  See
-  # RMail::StreamParser.parse.  This is a low level interface to the
-  # RMail message parser.
+  # RMail::StreamParser.parse.  This is a low level interface to
+  # the RubyMail message parser.
   #
   # = Order of Method Calls (Grammar)
   #
@@ -48,6 +50,7 @@ module RMail
   #
   # MESSAGE::         [ #mbox_from ] *( #header_field )
   #                   ( BODY / MULTIPART_BODY )
+  #                   #raw_entity
   #
   # BODY::            *body_begin *( #body_chunk ) #body_end
   #
@@ -77,6 +80,11 @@ module RMail
   # are parsed, any number of calls to #epilogue_chunk are followed by
   # a single call to #multipart_body_end.
   #
+  # The #raw_entity method is always called after #body_end or
+  # #multipart_body_end with the raw data for the entire
+  # entity.  This can be saved away for later use (e.g. re-creation of
+  # the original message, or cryptographic signature verification).
+  #
   # The recursive nature of MIME multipart messages is represented by
   # the recursive invocation of the "MESSAGE" production in the
   # grammar above.
@@ -102,7 +110,8 @@ module RMail
 
     # This method is called with a string chunk of data from a
     # non-multipart message body.  The string does not necessarily
-    # begin or end on any particular boundary.
+    # begin or end on any particular boundary, but is guaranteed to
+    # not extend past the end of the current MIME entity.
     def body_chunk(chunk)
     end
 
@@ -146,12 +155,33 @@ module RMail
     # are concerned only about message content.
     def multipart_body_end(delimiters, boundary)
     end
+
+    # This method is called after a call to #body_end or
+    # #multipart_body_end.  The supplied +data+ is the raw entity data
+    # for the entire part (+whole+) as well as the raw data for just
+    # the +header+ and +body+ portions.  These objects are
+    # RMail::Substring objects.
+    def raw_entity(header, body, whole)
+    end
   end
 
-  # The RMail::StreamParser is a low level message parsing API.  It is
-  # useful when you are interested in serially examining all message
-  # content but are not interested in a full object representation of
-  # the object.  See StreamParser.parse.
+  # The RMail::StreamParser is a low level message parsing API.
+  # For input, accepts either an +IO+object, a +String+ or an object
+  # that implements +#to_str+.  It then calls various methods on a
+  # +handler+ object that conforms to the StreamHandler API as the
+  # structure of the message becomes apparent.
+  #
+  # The advantage of the parser operating in chunks of data instead of
+  # lines is efficiency.  E.g. an 80k document base64 encoded will
+  # amount to roughly 1500 lines of text but only eight 16k chunks of
+  # data.  This results in a measurable performance gain.
+  #
+  # This class is useful when you are interested in serially examining
+  # all message content but are not interested in a full object
+  # representation of the object.  See StreamParser.parse.
+  #
+  # If you are interested in the entire structure of the message, see
+  # RMail::Parser.
   class StreamParser
 
     class << self
@@ -178,9 +208,25 @@ module RMail
     end
 
     def parse                   # :nodoc:
-      input = RMail::Parser::PushbackReader.new(@input)
-      input.chunk_size = @chunk_size if @chunk_size
-      parse_low(input, 0)
+
+      #
+      # IMPROVE: the fact that I have to pass a pos of 0 here suggests
+      # that PushbackReader should not support #pos, but instead a
+      # derived class.  Then, NormalizeEOLReader wouldn't be tracking
+      # #pos, but other readers could as needed.
+      #
+      input = RMail::Parser::NormalizeEOLReader.new(@input, 0)
+
+      # Create an AccumulateReader to accumulate all input data for
+      # this parse.
+      #
+      # TODO: figure out a nice way to make this optional, make it
+      # spool to a file, etc.
+      accumulator = RMail::Parser::AccumulateReader.new(input)
+
+      accumulator.chunk_size = @chunk_size if @chunk_size
+
+      parse_low(accumulator, accumulator, 0)
       return nil
     end
 
@@ -190,13 +236,32 @@ module RMail
 
     private
 
-    def parse_low(input, depth)
+    def parse_low(accumulator, input, depth)
+
+      start_pos = input.pos
+
       multipart_boundary = parse_header(input, depth)
+
+      body_pos = input.pos
+
       if multipart_boundary
-        parse_multipart_body(input, depth, multipart_boundary)
+        parse_multipart_body(accumulator, input, depth, multipart_boundary)
       else
         parse_singlepart_body(input, depth)
       end
+
+      end_pos = input.pos
+
+      header_substring = accumulator.substring(start_pos,
+                                               body_pos - start_pos)
+      body_substring = accumulator.substring(body_pos,
+                                             end_pos - body_pos)
+      whole_substring = accumulator.substring(start_pos,
+                                              end_pos - start_pos)
+
+      @handler.raw_entity(header_substring,
+                          body_substring,
+                          whole_substring)
     end
 
     def parse_header(input, depth)
@@ -218,7 +283,7 @@ module RMail
         end
         break if rest
       end
-      input.pushback(rest)
+      input.pushback(rest) if rest
       if header
         mime = false
         fields = header.split(/\n(?!\s)/)
@@ -253,8 +318,8 @@ module RMail
       return boundary
     end
 
-    def parse_multipart_body(input, depth, boundary)
-      input = RMail::Parser::MultipartReader.new(input, boundary)
+    def parse_multipart_body(accumulator, input, depth, boundary)
+      input = RMail::Parser::MultipartReader.new(input, input.pos, boundary)
       input.chunk_size = @chunk_size if @chunk_size
 
       @handler.multipart_body_begin
@@ -272,7 +337,7 @@ module RMail
           end
         else
           @handler.part_begin
-          parse_low(input, depth + 1)
+          parse_low(accumulator, input, depth + 1)
           @handler.part_end
         end
         delimiters << (input.delimiter || "") unless input.epilogue?
@@ -307,14 +372,6 @@ module RMail
   # In all cases, the parser consumes all input.
   class Parser
 
-    # This exception class is thrown when the parser encounters an
-    # error.
-    #
-    # Note: the parser tries hard to never throw exceptions -- this
-    # error is thrown only when the API is used incorrectly and not on
-    # invalid input.
-    class Error < StandardError; end
-
     # Creates a new parser.  Messages of +message_class+ will be
     # created by the parser.  By default, the parser will create
     # RMail::Message objects.
@@ -323,7 +380,8 @@ module RMail
     end
 
     # Parse a message from the IO object +io+ and return a new
-    # message.  The +io+ object can also be a string.
+    # message.  The +io+ object can also be a +String+ or an object
+    # that implements +#to_str+.
     def parse(input)
       handler = RMail::Parser::Handler.new
       parser = RMail::StreamParser.new(input, handler)
@@ -345,11 +403,13 @@ module RMail
       Parser.new.parse(input)
     end
 
-    class Handler < RMail::StreamHandler # :nodoc:
+    # A stream handler for parsing messages.
+    class Handler               # :nodoc:
       def initialize
         @parts = [ RMail::Message.new ]
         @preambles = []
         @epilogues = []
+        @save_body = []
       end
       def mbox_from(field)
         @parts.last.header.mbox_from = field
@@ -358,19 +418,28 @@ module RMail
         @parts.last.header.add_raw(field)
       end
       def body_begin
-        @body = nil
+        # This call will be paired with a call to #raw_entity, where
+        # we will pop this value off the stack.
+        #
+        # Push a new save_body flag onto the stack and set it to
+        # false.  It will be set to true in #body_chunk() if there is
+        # actually any body data in the message.
+        @save_body.push(false)
       end
       def body_chunk(chunk)
-        if @body
-          @body << chunk
-        else
-          @body = chunk
-        end
+        # ignore the chunk, but set @save_body.last to true so
+        # #raw_entity will save the body.
+        @save_body[-1] = true
       end
       def body_end
-        @parts.last.body = @body
+        # ignore -- rely on #raw_entity to save the body if
+        # appropriate.
       end
       def multipart_body_begin
+        # This call will be paired with a call to #raw_entity, where
+        # we will pop this value off the stack.
+        @save_body.push(false)
+
         @preambles.push(nil)
         @epilogues.push(nil)
       end
@@ -405,6 +474,15 @@ module RMail
       end
       def message
         @parts.first
+      end
+      def raw_entity(header,
+                     body,
+                     whole)
+        @parts.last.raw_entity = whole
+        save_body = @save_body.pop
+        if save_body
+          @parts.last.body = body
+        end
       end
     end
 

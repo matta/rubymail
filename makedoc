@@ -1,8 +1,0 @@
-#!/bin/sh
-rm -rf doc
-version=${1:-UNRELEASED}
-rdoc --title "RubyMail Documentation (version $version)" \
-    --exclude SCCS \
-    --show-hash \
-    --main README \
-    README NEWS THANKS TODO guide/*.txt lib/rmail lib/rmail.rb

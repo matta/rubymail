@@ -1,6 +1,5 @@
-#!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,27 +23,37 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
 
-# The RMail module contains all of the RMail classes, but has no
-# useful API of its own.
+require 'rmail/parser/pushbackreader'
+
+# A utility PushbackReader class that will eat whitepsace and
+# normalize a leading From line.  E.g. if you have an input stream
+# that begins with <tt>"\n\n>From foo@bar\n"</tt> it will eat the
+# leading <tt>"\n\n>"</tt>.
 #
-# See guide/Intro.txt for a general overview of RMail.
-module Rmail
+# This is primarily useful for parsing input you know is a MIME entity
+# with headers.
+class RMail::Parser::SloppyStartReader < RMail::Parser::PushbackReader
+
+  # Create a new sloppy start reader.
+  def initialize(input)
+    super
+  end
+
+  def read_chunk(size)          # :nodoc:
+    chunk = standard_read_chunk(size)
+    chunk.gsub!(/\A\n*>?/, '')
+
+    unless chunk.empty?
+      # If the chunk isn't empty, then we have reached the end of the
+      # sloppy stuff we strip from the beginning of the stream.  So,
+      # now behave just like our base class.
+      def self.read_chunk(size)
+        standard_read_chunk(size)
+      end
+    end
+
+    chunk
+  end
 end
 
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'

@@ -1,5 +1,5 @@
 #--
-#   Copyright (c) 2002, 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2002, 2003, 2004, 2005 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -26,15 +26,15 @@
 #++
 # Implements the RMail::Parser::PushbackReader class.
 
+require 'rmail/exception'
+
 module RMail
   class Parser
-
-    class Error < StandardError; end
 
     # A utility class for reading from an input source in an efficient
     # chunked manner.
     #
-    # The idea is to read data in descent sized chunks (the default is
+    # The idea is to read data in sizable sized chunks (the default is
     # 16k), but provide a way to "push back" some of the chunk if we
     # read too much.
     #
@@ -44,23 +44,30 @@ module RMail
     #
     # The typical RubyMail user will have no interest in this class.
     # ;-)
-    class PushbackReader        # :nodoc:
+    class PushbackReader
 
       # Create a PushbackReader and have it read from a given input
       # source.
       #
       # The input source must either be a String or respond to the
       # "read" method in the same way as an IO object.
-      def initialize(input)
+      def initialize(input, initial_pos = -1)
         unless defined? input.read(1)
-          unless input.is_a?(String)
-            raise ArgumentError, "input object not IO or String"
+          input = input.to_str
+          unless initial_pos <= 0
+            raise ArgumentError, "initial_pos not supported for strings"
           end
           @pushback = input
           @input = nil
+          @pos = input.length
         else
           @pushback = nil
           @input = input
+          @pos = if initial_pos >= 0
+                   initial_pos
+                 else
+                   input.pos
+                 end
         end
         @chunk_size = 16384
       end
@@ -69,6 +76,9 @@ module RMail
       # suggestion, and more or fewer bytes may be returned.  If
       # "size" is nil, then return the entire rest of the input
       # stream.
+      #
+      # Derived classes should avoid re-defining this method and
+      # consider redefining #read_chunk instead.
       def read(size = @chunk_size)
         case size
         when nil
@@ -90,7 +100,9 @@ module RMail
       end
 
       # Read a chunk of a given size.  Unlike #read, #read_chunk must
-      # be passed a chunk size, and cannot be passed nil.
+      # be passed a chunk size, and cannot be passed nil.  Still
+      # +size+ is just a suggestion, and more or fewer bytes may be
+      # returned.
       #
       # This is the function that should be re-defined in subclasses
       # for specialized behavior.
@@ -101,6 +113,9 @@ module RMail
       # The standard implementation of read_chunk.  This can be
       # convenient to call from derived classes when super() isn't
       # easy to use.
+      #
+      # The +size+ requested is just a suggestion, and more or fewer
+      # bytes may be returned.
       def standard_read_chunk(size)
         unless size.is_a?(Fixnum) && size > 0
           raise ArgumentError,
@@ -111,9 +126,14 @@ module RMail
           @pushback = nil
         elsif ! @input.nil?
           chunk = @input.read(size)
+          @pos += chunk.length unless chunk.nil?
         end
         return chunk
       end
+
+      # Raised by PushbackReader when PushbackReader#pushback is
+      # called with something already pushed.
+      class DuplicatePushbackError < RubyMailError; end
 
       # Push a string back.  This will be the next chunk of data
       # returned by #read.
@@ -122,7 +142,8 @@ module RMail
       # efficiency, only one chunk of data can be pushed back between
       # successive calls to #read.
       def pushback(string)
-        raise RMail::Parser::Error,
+        raise ArgumentError, "nil pushback not allowed" if string.nil?
+        raise DuplicatePushbackError,
           'You have already pushed a string back.' if @pushback
         @pushback = string
       end
@@ -147,6 +168,17 @@ module RMail
       # Returns true if the next call to read_chunk will return nil.
       def eof
         @pushback.nil? and (@input.nil? or @input.eof)
+      end
+
+      # Returns the position of the input stream -- i.e. the byte
+      # offset within the input stream that the first byte of the next
+      # call to #read is at.
+      def pos
+        @pos - if @pushback
+                 @pushback.length
+               else
+                 0
+               end
       end
 
       # Creates a regexp that'll match the given boundary string in

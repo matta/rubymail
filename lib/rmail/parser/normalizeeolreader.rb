@@ -1,6 +1,5 @@
-#!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -24,27 +23,33 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
 
-# The RMail module contains all of the RMail classes, but has no
-# useful API of its own.
-#
-# See guide/Intro.txt for a general overview of RMail.
-module Rmail
-end
-
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
 require 'rmail/parser/pushbackreader'
+require 'English'
+
+# A utility PushbackReader class that will normalize all "\r\n"
+# end of line terminators in an input stream to "\n".
+#
+# The idea is to use this instead of a PushbackReader directly
+# when you want to ensure all end of line characters in the input
+# are "\n".
+#
+# The typical RubyMail user doesn't need to know this exists.
+class RMail::Parser::NormalizeEOLReader < RMail::Parser::PushbackReader # :nodoc:
+
+  def initialize(input, initial_pos = -1)
+    super
+  end
+
+  # Read a chunk, but never return a chunk with a "\r\n" end of line
+  # sequence.  Accomplish this by removing all "\r" characters from
+  # the input.
+  def read_chunk(size)
+    chunk = standard_read_chunk(size)
+    if chunk
+      chunk.gsub!(/\r/, '')
+    end
+    return chunk
+  end
+
+end

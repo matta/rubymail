@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003, 2004, 2007 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,10 +25,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/header'
 
-class TestRMailHeader < TestBase
+class TC_Header < TestBase
 
   def test_AREF # '[]'
     h = RMail::Header.new
@@ -81,12 +81,13 @@ class TestRMailHeader < TestBase
       end
     end
 
-    # Test that passing in symbols will not get converted into strings
+    # Test that passing in symbols will get converted into strings
     # strings
     h = RMail::Header.new
-    assert_raise(NO_METHOD_ERROR) {
+    assert_nothing_raised {
       h[:Kelly] = :the_value
     }
+    h['Kelly'] = 'the_value'
 
     # Test that the : will be stripped
     h = RMail::Header.new
@@ -178,11 +179,12 @@ class TestRMailHeader < TestBase
       end
     end
 
-    # Test that passing in symbol values raises an exception
+    # Test that passing in symbol values raises no exception
     h = RMail::Header.new
-    assert_raise(NO_METHOD_ERROR) {
+    assert_nothing_raised {
       assert_same(h, h.add("bob", :the_value))
     }
+    assert_equal(h['bob'], "the_value")
 
     # Test that we can put stuff in arbitrary locations
     h = RMail::Header.new
@@ -1094,9 +1096,9 @@ EOF
     h[field_name] = "bob2@example.net"
     assert_equal(2, h.length)
     assert_equal("bob@example.net", h[field_name])
-    assert_equal(["bob@example.net", "bob2@example.net"],
+    assert_equal(addrs(["bob@example.net", "bob2@example.net"]),
                  h.fetch_all(field_name))
-    assert_equal(["bob@example.net", "bob2@example.net"],
+    assert_equal(addrs(["bob@example.net", "bob2@example.net"]),
                  h.__send__("#{get}"))
 
     h.__send__("#{assign}", "sally@example.net")
@@ -1178,11 +1180,11 @@ EOF
     assert_match(/[a-z0-9]{5,6}/, a.local.split('.')[0])
     assert_match(/[a-z0-9]{5,6}/, a.local.split('.')[1])
 
-    h.to = "matt@lickey.com"
+    h.to = "matt@example.com"
     h.delete('message-id')
     h.add_message_id
     a = RMail::Address.parse(h.message_id).first
-    assert_equal('70bmbq38pc5q462kl4ikv0mcq', a.local.split('.')[2],
+    assert_equal('djyoyfoksxxzap9yx4qb2szaa', a.local.split('.')[2],
                  "md5 hash wrong for header")
   end
 
@@ -1198,13 +1200,19 @@ EOF
     assert_equal("Subject: hi dad\n", h.to_s)
   end
 
+  def addrs(array)
+    array.collect { |a| RMail::Address.new(a) }
+  end
+
   def test_recipients
     %w{ to cc bcc }.each { |field_name|
       h = RMail::Header.new
-      h[field_name] = 'matt@lickey.com'
-      assert_equal([ 'matt@lickey.com' ], h.recipients )
-      h[field_name] = 'bob@lickey.com'
-      assert_equal([ 'matt@lickey.com', 'bob@lickey.com' ], h.recipients )
+      h[field_name] = 'matt@rfc20.com'
+      assert_equal(addrs([ 'matt@rfc20.com' ]),
+                   h.recipients )
+      h[field_name] = 'bob@rfc20.com'
+      assert_equal(addrs([ 'matt@rfc20.com', 'bob@rfc20.com' ]),
+                   h.recipients )
     }
 
     h = RMail::Header.new
@@ -1212,14 +1220,78 @@ EOF
     h.cc = 'bill@example.net'
     h.bcc = 'samuel@example.net'
     assert_kind_of(RMail::Address::List, h.recipients)
-    assert_equal([ 'bill@example.net',
-                   'bob@example.net',
-                   'sally@example.net',
-                   'samuel@example.net' ], h.recipients.sort)
+    assert_equal(addrs([ 'bill@example.net',
+                         'bob@example.net',
+                         'sally@example.net',
+                         'samuel@example.net' ]), h.recipients.sort)
 
     h = RMail::Header.new
     assert_kind_of(RMail::Address::List, h.recipients)
     assert_equal(0, h.recipients.length)
+  end
+
+  def test_add_raw
+    # tested extensively elsewhere
+  end
+
+  def test_address_list_assign
+    # tested extensively elsewhere
+  end
+
+  def test_address_list_fetch
+    # tested extensively elsewhere
+  end
+
+  def test_bcc
+    # tested extensively elsewhere
+  end
+
+  def test_bcc_SET # 'bcc='
+    # tested extensively elsewhere
+  end
+
+  def test_cc
+    # tested extensively elsewhere
+  end
+
+  def test_cc_SET # 'cc='
+    # tested extensively elsewhere
+  end
+
+  def test_date_SET # 'date='
+    # tested extensively elsewhere
+  end
+
+  def test_from_SET # 'from='
+    # tested extensively elsewhere
+  end
+
+  def test_mbox_from_SET # 'mbox_from='
+    # tested extensively elsewhere
+  end
+
+  def test_reply_to
+    # tested extensively elsewhere
+  end
+
+  def test_reply_to_SET # 'reply_to='
+    # tested extensively elsewhere
+  end
+
+  def test_subject_SET # 'subject='
+    # tested extensively elsewhere
+  end
+
+  def test_to
+    # tested extensively elsewhere
+  end
+
+  def test_to_SET # 'to='
+    # tested extensively elsewhere
+  end
+
+  def test_to_s
+    # tested extensively elsewhere
   end
 
 end

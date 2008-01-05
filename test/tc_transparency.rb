@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002, 2007 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,11 +25,12 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/parser'
 require 'rmail/serialize'
+require 'fileutils'
 
-class TestRMailTransparency < TestBase
+class TC_Transparency < TestBase
   def do_file(file)
     full_name = data_filename(file)
     message1 = data_as_file(file) { |f|

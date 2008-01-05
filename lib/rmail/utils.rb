@@ -1,5 +1,5 @@
 #--
-#   Copyright (C) 2002, 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002-2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,7 @@ module RMail
     class << self
 
       # Return the given string unquoted if it is quoted.
+      # E.g. <tt>"foo"</tt> becomes +foo+.
       def unquote(str)
         if str =~ /\s*"(.*?([^\\]|\\\\))"/m
           $1.gsub(/\\(.)/, '\1')
@@ -43,15 +44,38 @@ module RMail
         end
       end
 
-      # Decode the given string as if it were a chunk of base64 data
-      def base64_decode(str)
+      # Decode the given string as if it were a chunk of base64 data.
+      def decode_base64(str)
         str.unpack("m*").first
       end
 
+      # The old RubyMail 0.17 name.
+      alias :base64_decode :decode_base64
+
       # Decode the given string as if it were a chunk of quoted
-      # printable data
-      def quoted_printable_decode(str)
+      # printable data.
+      def decode_quoted_printable(str)
         str.unpack("M*").first
+      end
+
+      # The old RubyMail 0.17 name.
+      alias :quoted_printable_decode :decode_quoted_printable
+
+      # Decode the given string as if it were a chunk of uuencoded
+      # data.
+      def decode_uuencoded(str)
+        uudecoding = false
+        accum = ''
+        str.each_line do |uu_line|
+          if uudecoding
+            break if /^end\b/i.match(uu_line)
+            accum << uu_line.unpack("u*").first
+          else
+            next unless /^begin\b/i.match(uu_line)
+            uudecoding = true
+          end
+        end
+        accum
       end
 
     end

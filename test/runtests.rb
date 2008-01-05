@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
-#--
-#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
+#
+#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,23 +25,14 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
-require 'rmail/mailbox'
+fail "must run this script directly" unless __FILE__ == $0
+path = File.expand_path(File.join(File.dirname($0), '..', 'lib'))
+puts "Prepending #{path} to the $LOAD_PATH"
+$LOAD_PATH.unshift(path)        # get our stuff first
 
-class TestRMailMailbox < TestBase
-  def test_parse_mbox_simple
-    expected = ["From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n",
-      "From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n",
-      "From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n"]
-    data_as_file("mbox.simple") { |f|
-      assert_equal(expected, RMail::Mailbox::parse_mbox(f))
-    }
-    data_as_file("mbox.simple") { |f|
-      messages = []
-      RMail::Mailbox::parse_mbox(f) { |m|
-        messages << m
-      }
-      assert_equal(expected, messages)
-    }
-  end
-end
+Dir['test/test*.rb'].each {|f|
+  require f
+}
+Dir['test/tc_*.rb'].each {|f|
+  require f
+}

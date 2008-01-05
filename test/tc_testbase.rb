@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2007 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2004 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -27,9 +27,98 @@
 
 # Test the TestBase class itself
 
-require 'tests/testbase.rb'
+require 'test/testbase.rb'
 
-class TestTestBase < TestBase
+class TC_TestBase < TestBase
+
+  def test_setup
+    assert(FileTest.directory?(@scratch_dir))
+    assert(FileTest.directory?(@data_dir))
+  end
+
+  def test_teardown
+    test_setup
+    teardown
+    assert(!FileTest.directory?(@scratch_dir))
+  end
+
+  def test_call_raises
+    failed = call_raises("arg") { |arg|
+      raise if arg == arg
+    }
+    assert(failed)
+
+    failed = call_raises("arg") { |arg|
+      raise if arg != arg
+    }
+    assert(true)
+  end
+
+  def test_data_as_file
+    data_as_file("test_data_as_file") { |f|
+      assert_kind_of(File, f)
+      assert_equal("Some\nData\n", f.read)
+    }
+  end
+
+  def test_data_as_string
+    data_as_string("test_data_as_file") { |s|
+      assert_equal("Some\nData\n", s)
+    }
+  end
+
+  def test_data_filename
+    assert_equal(@data_dir, File.dirname(data_filename("foo")))
+    assert_equal("foo", File.basename(data_filename("foo")))
+  end
+
+  def test_extra_load_paths
+    # Leaving this untested.
+  end
+
+  def test_find_shortest_failure
+    # Leaving this untested.
+  end
+
+  def test_platform_is_windows_filesystem
+    # Leaving this untested.
+  end
+
+  def test_platform_is_windows_native
+    # Leaving this untested.
+  end
+
+  def test_platform_null_file
+    # Leaving this untested.
+  end
+
+  def test_test_nothing
+    # Leaving this untested.
+  end
+
+  def test_with_string_in_file
+    text = "A string in a file!\n"
+    name = ''
+    with_string_in_file(text, "template") { |name|
+      assert_equal(@scratch_dir, File.dirname(name))
+      FileTest::exists?(name)
+    }
+    FileTest::exists?(name)
+  end
+
+  def test_string_vary_eol
+    e = assert_raise(ArgumentError) {
+      string_vary_eol("foo\rbar")
+    }
+    assert_equal('string contains \r characters', e.message)
+
+    string = "abcd\nefgh\n"
+
+    results = [ "abcd\nefgh\n", "abcd\r\nefgh\r\n" ]
+    string_vary_eol(string) { |s|
+      assert_equal(results.shift, s, "unexpected string_var_eol variant")
+    }
+  end
 
   def test_cleandir
     Dir.mkdir("_testdir_")
@@ -72,12 +161,12 @@ class TestTestBase < TestBase
   end
 
   def verify_scratch_dir_name(dir)
-    assert_match(/_scratch.*TestTestBase/, dir)
+    assert_match(/scratch.*TC_TestBase/, dir)
   end
 
   def test_name
     assert_match(/\btest_name\b/, name)
-    assert_match(/\bTestTestBase\b/, name)
+    assert_match(/\bTC_TestBase\b/, name)
   end
 
   def test_scratch_dir

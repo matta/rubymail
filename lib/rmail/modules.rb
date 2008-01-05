@@ -1,6 +1,5 @@
-#!/usr/bin/env ruby
 #--
-#   Copyright (c) 2003 Matt Armstrong.  All rights reserved.
+#   Copyright (c) 2004, 2005 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,26 +24,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
+# Declares the RubyMail and RMail::Filter module.  Please ignore
+# this file.
 
-# The RMail module contains all of the RMail classes, but has no
-# useful API of its own.
-#
-# See guide/Intro.txt for a general overview of RMail.
-module Rmail
+module RMail
+  module Filter
+  end
 end
-
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2002, 2003, 2004 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2002-2005 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,95 +25,29 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/parser'
+require 'rmail/parser/sloppystart'
 
-class TestRMailStreamParser < TestBase
+class TC_Parser < TestBase
 
-  class RecordingStreamHandler
-    def initialize(history)
-      @history = history
-    end
-    def method_missing(symbol, *args)
-      @history << [ symbol ].concat(args)
-    end
-  end
-
-  def test_stream_parser_simple
-    string_msg = \
-'From matt@lickey.com  Mon Dec 24 00:00:06 2001
+  def setup
+    super
+    @common_test_parse_message = <<-EOF
+From matt@rfc20.com  Mon Dec 24 00:00:06 2001
 From:    matt@example.net
 To:   matt@example.com
 Subject: test message
 
 message body
 has two lines
-'
-
-    string_as_file(string_msg) { |f|
-      RMail::StreamParser.parse(f, RMail::StreamHandler.new)
-      f.rewind
-      history = []
-      RMail::StreamParser.parse(f, RecordingStreamHandler.new(history))
-      expected = [
-        [:mbox_from, "From matt@lickey.com  Mon Dec 24 00:00:06 2001"],
-        [:header_field, "From:    matt@example.net", "From",
-          "matt@example.net"],
-        [:header_field, "To:   matt@example.com", "To", "matt@example.com"],
-        [:header_field, "Subject: test message", "Subject", "test message"],
-        [:body_begin],
-        [:body_chunk, "message body\nhas two lines\n"],
-        [:body_end]]
-      assert_equal(expected, history)
-    }
+    EOF
+    @common_test_parse_message.freeze
   end
-
-  def test_stream_parser_multipart
-    string_msg = \
-'Content-Type: multipart/mixed; boundary="aa"
-MIME-Version: 1.0
-
-preamble
---aa
-Header1: hi mom
-
-body1
---aa--
-epilogue
-'
-
-    string_as_file(string_msg) { |f|
-      RMail::StreamParser.parse(f, RMail::StreamHandler.new)
-      f.rewind
-      history = []
-      RMail::StreamParser.parse(f, RecordingStreamHandler.new(history))
-      expected = [
-        [:header_field, "Content-Type: multipart/mixed; boundary=\"aa\"",
-          "Content-Type", "multipart/mixed; boundary=\"aa\""],
-        [:header_field, "MIME-Version: 1.0", "MIME-Version", "1.0"],
-        [:multipart_body_begin],
-        [:preamble_chunk, "preamble"],
-        [:part_begin],
-        [:header_field, "Header1: hi mom", "Header1", "hi mom"],
-        [:body_begin],
-        [:body_chunk, "body1"],
-        [:body_end],
-        [:part_end],
-        [:epilogue_chunk, "epilogue\n"],
-        [:multipart_body_end,  ["\n--aa\n", "\n--aa--\n"], "aa"]
-      ]
-      assert_equal(expected, history)
-    }
-  end
-
-end
-
-
-class TestRMailParser < TestBase
 
   def common_test_parse(m)
     assert_instance_of(RMail::Message, m)
-    assert_equal("From matt@lickey.com  Mon Dec 24 00:00:06 2001",
+    assert_equal("From matt@rfc20.com  Mon Dec 24 00:00:06 2001",
                  m.header.mbox_from)
     assert_equal("matt@example.net", m.header[0])
     assert_equal("matt@example.net", m.header['from'])
@@ -122,28 +56,21 @@ class TestRMailParser < TestBase
     assert_equal("test message", m.header[2])
     assert_equal("test message", m.header['subject'])
     assert_equal("message body\nhas two lines\n", m.body)
+    assert_equal(@common_test_parse_message, m.raw_entity)
   end
 
   def test_parse
     p = RMail::Parser.new
 
-    string_msg = <<-EOF
-From matt@lickey.com  Mon Dec 24 00:00:06 2001
-From:    matt@example.net
-To:   matt@example.com
-Subject: test message
+    string_vary_eol(@common_test_parse_message) { |s|
+      m = string_as_file(s) { |f|
+        p.parse(f)
+      }
+      common_test_parse(m)
 
-message body
-has two lines
-    EOF
-
-    m = string_as_file(string_msg) { |f|
-      p.parse(f)
+      m = p.parse(s)
+      common_test_parse(m)
     }
-    common_test_parse(m)
-
-    m = p.parse(string_msg)
-    common_test_parse(m)
   end
 
   def test_parse_simple_mime
@@ -153,6 +80,7 @@ has two lines
     }
 
     assert_instance_of(RMail::Message, m)
+    assert_equal("From: Nathaniel Borenstein <nsb@bellcore.com>\nTo: Ned Freed <ned@innosoft.com>\nDate: Sun, 21 Mar 1993 23:56:48 -0800 (PST)\nSubject: Sample message\nMIME-Version: 1.0\nContent-type: multipart/mixed; boundary=\"simple boundary\"\n\nThis is the preamble.  It is to be ignored, though it\nis a handy place for composition agents to include an\nexplanatory note to non-MIME conformant readers.\n\n--simple boundary\n\nThis is implicitly typed plain US-ASCII text.\nIt does NOT end with a linebreak.\n--simple boundary\nContent-type: text/plain; charset=us-ascii\n\nThis is explicitly typed plain US-ASCII text.\nIt DOES end with a linebreak.\n\n--simple boundary--\n\nThis is the epilogue.  It is also to be ignored.\n", m.raw_entity)
     assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header[0])
     assert_equal("Nathaniel Borenstein <nsb@bellcore.com>", m.header['from'])
     assert_equal("Ned Freed <ned@innosoft.com>", m.header[1])
@@ -182,6 +110,7 @@ explanatory note to non-MIME conformant readers.
     assert_equal(%q{This is implicitly typed plain US-ASCII text.
 It does NOT end with a linebreak.}, m.part(0).body)
     assert_equal(nil, m.part(0).header['content-type'])
+    assert_equal("\nThis is implicitly typed plain US-ASCII text.\nIt does NOT end with a linebreak.", m.part(0).raw_entity)
 
     # Verify the second part
     assert_equal(%q{This is explicitly typed plain US-ASCII text.
@@ -189,10 +118,20 @@ It DOES end with a linebreak.
 }, m.part(1).body)
     assert_equal("text/plain; charset=us-ascii",
                  m.part(1).header['content-type'])
+    assert_equal("Content-type: text/plain; charset=us-ascii\n\nThis is explicitly typed plain US-ASCII text.\nIt DOES end with a linebreak.\n", m.part(1).raw_entity)
 
     # Verify the epilogue
     assert_equal("\nThis is the epilogue.  It is also to be ignored.\n",
                  m.epilogue)
+  end
+
+  def test_parse_decode_uuencoded
+    m = data_as_file('cte-uuencode.email') { |f|
+      RMail::Parser.read(f)
+    }
+    s = m.part(1).decode
+    assert_equal("Hi mom!\n", s,
+                 "The uuencoded data didn't decode correctly.")
   end
 
   def test_parse_nested_simple
@@ -324,6 +263,55 @@ It DOES end with a linebreak.
         assert_equal("inline", part.header['content-disposition'])
         assert_equal("This is the third part.\n", part.body)
       end
+    end
+  end
+
+  def test_parse_message_rfc822
+    p = RMail::Parser.new
+    m = data_as_file('message_rfc822.email') { |f|
+      p.parse(f)
+    }
+
+    # Verify preamble and epilogue
+    assert_equal("This is a multi-part message in MIME format.", m.preamble)
+    assert_equal("\n", m.epilogue)
+
+    # Verify a smattering of headers
+    assert_equal("multipart/mixed;\n boundary=\"------------040702090809070400080505\"",
+                 m.header['content-type'])
+    assert_equal("[Fwd: FF: Arnoldian studies]", m.header['subject'])
+
+    # Verify part 0
+    begin
+      part = m.part(0)
+      assert_equal(2, part.header.length)
+      assert_equal("\n", part.body)
+    end
+
+    # Verify part 1
+    begin
+      part = m.part(1)
+      assert_nil(part.preamble)
+      assert_nil(part.epilogue)
+      assert_equal(3, part.header.length)
+      assert_equal("inline;\n filename=\"FF: Arnoldian studies\"",
+                   part.header['content-disposition'])
+
+      # Verify that the default parser thinks the message body is a
+      # MIME entity with no headers.
+      normal = RMail::Parser.read(part.body)
+      assert_equal(0, normal.header.length)
+      assert_match(/\A>From/, normal.body.to_s)
+
+      # Now test that the SloppyStartReader eats up the cruft at the
+      # beginning and we parse the message out correctly.
+      sloppy_start = RMail::Parser::SloppyStartReader.new(part.body)
+      sloppy = RMail::Parser.read(sloppy_start)
+      assert_equal(25, sloppy.header.length)
+      assert_equal("From owner-xxxxxxxx@LISTSERV.XXXXXX.XXX  " +
+                   "Fri Oct  3 15:00:49 2003", sloppy.header.mbox_from)
+      assert_match(/\AFriday Funny.*2003 The Los Angeles Times/m,
+                   sloppy.body.to_str)
     end
   end
 
@@ -608,7 +596,7 @@ It DOES end with a linebreak.
   def test_rmail_parser_s_read
 
     string_msg = <<-EOF
-From matt@lickey.com  Mon Dec 24 00:00:06 2001
+From matt@rfc20.com  Mon Dec 24 00:00:06 2001
 From:    matt@example.net
 To:   matt@example.com
 Subject: test message
@@ -617,12 +605,12 @@ message body
 has two lines
     EOF
 
-    m = string_as_file(string_msg) { |f|
+    m = string_as_file(@common_test_parse_message) { |f|
       RMail::Parser.read(f)
     }
     common_test_parse(m)
 
-    m = RMail::Parser.read(string_msg)
+    m = RMail::Parser.read(@common_test_parse_message)
     common_test_parse(m)
   end
 
