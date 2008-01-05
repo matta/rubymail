@@ -25,16 +25,23 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
-require 'rmail/mailbox/mboxreader'
+require 'test/testbase'
+require 'rmail/mailbox'
 
-class TextRMailParserPushbackReader < TestBase
-
-  def test_pushback
-    reader = RMail::Parser::PushbackReader.new("")
-    assert_raise(RMail::Parser::Error) {
-      reader.pushback("hi bob")
+class TestRMailMailbox < TestBase
+  def test_parse_mbox_simple
+    expected = ["From foo@bar  Wed Nov 27 12:27:32 2002\nmessage1\n",
+      "From foo@bar  Wed Nov 27 12:27:36 2002\nmessage2\n",
+      "From foo@bar  Wed Nov 27 12:27:40 2002\nmessage3\n"]
+    data_as_file("mbox.simple") { |f|
+      assert_equal(expected, RMail::Mailbox::parse_mbox(f))
+    }
+    data_as_file("mbox.simple") { |f|
+      messages = []
+      RMail::Mailbox::parse_mbox(f) { |m|
+        messages << m
+      }
+      assert_equal(expected, messages)
     }
   end
-
 end

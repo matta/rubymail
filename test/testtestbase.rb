@@ -27,7 +27,7 @@
 
 # Test the TestBase class itself
 
-require 'tests/testbase.rb'
+require 'test/testbase.rb'
 
 class TestTestBase < TestBase
 

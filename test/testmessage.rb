@@ -26,7 +26,7 @@
 #
 
 require 'rmail/message'
-require 'tests/testbase'
+require 'test/testbase'
 
 class TestRMailMessage < TestBase
 

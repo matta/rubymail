@@ -6,6 +6,9 @@ is missing.
 - StreamHandler should get preamble_begin and preamble_end callbacks.
   Same for epilogue_begin, epilogue_end.
 
+- Add a Rakefile rule to run the tests in the super anal way (against
+  multiple versions of Ruby).
+
 = STOLEN
 
 - Header continuation issue:

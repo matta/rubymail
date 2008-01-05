@@ -25,7 +25,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-require 'tests/testbase'
+require 'test/testbase'
 require 'rmail/header'
 
 class TestRMailHeader < TestBase
@@ -84,7 +84,7 @@ class TestRMailHeader < TestBase
     # Test that passing in symbols will not get converted into strings
     # strings
     h = RMail::Header.new
-    assert_raise(NO_METHOD_ERROR) {
+    assert_raise(NoMethodError) {
       h[:Kelly] = :the_value
     }
 
@@ -180,7 +180,7 @@ class TestRMailHeader < TestBase
 
     # Test that passing in symbol values raises an exception
     h = RMail::Header.new
-    assert_raise(NO_METHOD_ERROR) {
+    assert_raise(NoMethodError) {
       assert_same(h, h.add("bob", :the_value))
     }
 

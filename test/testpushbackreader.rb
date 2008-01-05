@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
-#
-#   Copyright (C) 2001, 2002, 2003 Matt Armstrong.  All rights reserved.
+#--
+#   Copyright (c) 2002 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,11 +25,16 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-fail "must run this script directly" unless __FILE__ == $0
-path = File.expand_path(File.join(File.dirname($0), '..', 'lib'))
-puts "Prepending #{path} to the $LOAD_PATH"
-$LOAD_PATH.unshift(path)        # get our stuff first
+require 'test/testbase'
+require 'rmail/mailbox/mboxreader'
 
-Dir['tests/test*.rb'].each {|f|
-  require f
-}
+class TextRMailParserPushbackReader < TestBase
+
+  def test_pushback
+    reader = RMail::Parser::PushbackReader.new("")
+    assert_raise(RMail::Parser::Error) {
+      reader.pushback("hi bob")
+    }
+  end
+
+end

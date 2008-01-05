@@ -43,13 +43,6 @@ class TestBase < Test::Unit::TestCase
 
   attr_reader :scratch_dir
 
-  # NoMethodError was introduced in ruby 1.7
-  NO_METHOD_ERROR = if RUBY_VERSION >= "1.7"
-		      NoMethodError
-		    else
-		      NameError
-		    end
-
   def test_nothing
     assert(true)  # Appease Test::Unit
   end
@@ -111,7 +104,7 @@ class TestBase < Test::Unit::TestCase
 
   def setup
     @scratch_dir = File.join(Dir.getwd, "_scratch_" + name)
-    @data_dir = File.join(Dir.getwd, "tests", "data")
+    @data_dir = File.join(Dir.getwd, "test", "data")
     @scratch_hash = {}
 
     cleandir(@scratch_dir)
@@ -135,7 +128,7 @@ class TestBase < Test::Unit::TestCase
       yield f
     }
   rescue Errno::ENOENT
-    assert_fail("data file #{name.inspect} does not exist")
+    flunk("data file #{name.inspect} does not exist")
   end
 
   def data_as_string(name)
