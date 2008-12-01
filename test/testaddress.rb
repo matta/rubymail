@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #--
-#   Copyright (C) 2001, 2002, 2003, 2007 Matt Armstrong.  All rights reserved.
+#   Copyright (C) 2001, 2002, 2003, 2007, 2008 Matt Armstrong.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -419,7 +419,7 @@ class TestRMailAddress < TestBase
           :format => '"Jason @ Tibbitts" <tibbs@uh.edu>' } ] ]
 
     # Majordomo II parses all of these with an error.  We have deleted
-    # some of the tests since when they are actually legal.
+    # some of the tests when they are actually legal.
     validate_case ['tibbs@uh.edu Jason Tibbitts', [] ]
     validate_case ['@uh.edu', [] ] # Can't start with @
     validate_case ['J <tibbs>', [] ] # Not FQDN
@@ -644,7 +644,6 @@ class TestRMailAddress < TestBase
   end
 
   def test_rfc_822
-
     validate_case\
     ['":sysmail"@ Some-Group. Some-Org, Muhammed.(I am the greatest) Ali @(the)Vegas.WBA',
       [ { :name => nil,
@@ -664,7 +663,6 @@ class TestRMailAddress < TestBase
   end
 
   def test_misc_addresses()
-
     # Make sure that parsing empty stuff works
     assert_equal([], RMail::Address.parse(nil))
     assert_equal([], RMail::Address.parse(""))
@@ -792,6 +790,20 @@ class TestRMailAddress < TestBase
 	  :local => 'erik',
 	  :format => 'Erik =?ISO-8859-1?Q?B=E5gfors?= <erik@example.net>'
 	} ] ]
+  end
+
+  def test_bug_1754
+    # http://rubyforge.org/tracker/?func=detail&atid=1754&aid=23043&group_id=446
+    validate_case\
+    ['=?iso-8859-1?Q?acme@example.com?= <acme@example.com>',
+      [ { :name => '=?iso-8859-1?Q?acme@example.com?=',
+          :display_name => '=?iso-8859-1?Q?acme@example.com?=',
+          :address => 'acme@example.com',
+          :comments => nil,
+          :domain => 'example.com',
+          :local => 'acme',
+          :format => '"=?iso-8859-1?Q?acme@example.com?=" <acme@example.com>',
+        } ] ]
   end
 
   def test_invalid_addresses()
