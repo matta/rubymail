@@ -792,7 +792,7 @@ class TestRMailAddress < TestBase
 	} ] ]
   end
 
-  def test_bug_1754
+  def test_bug_23043
     # http://rubyforge.org/tracker/?func=detail&atid=1754&aid=23043&group_id=446
     validate_case\
     ['=?iso-8859-1?Q?acme@example.com?= <acme@example.com>',
