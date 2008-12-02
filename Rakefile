@@ -101,7 +101,9 @@ PKG_FILES = FileList.new('test/**/*',
                          'NOTES',
                          'README',
                          'THANKS',
-                         'TODO')
+                         'TODO',
+                         'Rakefile',
+                         'version')
 
 #
 # Teach Rake how to build the RDoc documentation for this package.
@@ -137,7 +139,10 @@ end
 #
 if defined?(Gem)
   spec = Gem::Specification.new do |s|
-    s.name = 'rmail'
+    s.name = 'rubymail'
+    unless can_release_package
+      s.name += '-unreleased'
+    end
     s.version = PKG_VERSION + if can_release_package
                                 ''
                               else
@@ -145,9 +150,9 @@ if defined?(Gem)
                               end
     s.summary = 'A MIME mail parsing and generation library.'
     s.description = <<-EOF
-    RMail is a lightweight mail library containing various utility classes and
-    modules that allow ruby scripts to parse, modify, and generate MIME mail
-    messages.
+    RubyMail is a lightweight mail library containing various utility
+    classes and modules that allow ruby scripts to parse, modify, and
+    generate MIME mail messages.
     EOF
 
     s.files = PKG_FILES.to_a
@@ -163,7 +168,7 @@ if defined?(Gem)
 
     s.author = "Matt Armstrong"
     s.email = "matt@rfc20.org"
-    s.homepage = "http://www.rfc20.org/rubymail"
+    s.homepage = "http://sites.rfc20.org/rubymail"
 
     s.rubyforge_project = "rubymail"
   end

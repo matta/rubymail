@@ -1,0 +1,71 @@
+= Changes in RubyMail 1.0.0 (released 2004-11-14)
+
+Many changes, not backwards compatible!  RubyFilter is folded into
+RubyMail.  Module name changes everywhere.  Requires ruby 1.8.x or
+higher.
+
+- RubyMail now always strips CR (\r) characters from input streams it
+  is parsing.  This is helpful in various contexts where messages with
+  CRLF (\r\n) end of line sequences are used (POP3, S/MIME).
+
+- RubyMail is now available as a Gem!  If you have rubygems installed,
+  you can just do this to get RubyMail:
+
+    gem install rubymail
+
+  And then to get RubyMail into your scripts:
+
+    require 'rubygems'
+    require_gem 'rubymail'
+
+  Of course, you can also download the .tgz or .zip file and use the
+  supplied install.rb as before.
+
+- RubyMail now uses Test::Unit and not RubyUnit for its tests.
+
+- RMail::Message objects created with the RubyMail parser now
+  causes RMail::Message#body no longer return a String.  Instead,
+  it returns a RMail::Substring object.  Use #to_s on the Substring
+  object if you really need a string.
+
+- Most RubyMail classes no longer provide #to_str, but instead provide
+  #to_s.  The #to_str method should be reserved for objects that are
+  supposed to act just like a string.  See [ruby-dev:23332] and
+  [ruby-talk:96567]
+
+  Also, RubyMail classes no longer call #to_str on objects passed to it
+  but instead call #to_s.  The #to_str method is reserved for cases where
+  you really need a String object to be returned, and RubyMail needs
+  objects that merely behave like one.
+
+- The version numbering has changed.  Now a three number version
+  scheme.  A bump in the first number indicates a non-backwards
+  compatible change.  A bump in the second number indicates a new API
+  or feature that is backwards compatible with prior versions.  A bump
+  in the last number indicates any other change (minor bug fix, doc
+  change, etc.).
+
+  So, we now begin at version 1.0.0, since the #to_str change and
+  module name change isn't backward compatible with 0.17.
+
+- RDoc documentation is no longer provided by default.  You can do
+
+    rake rdoc
+
+  To generate the rdoc documentation (or if installed as a gem, this
+  will be done for you).
+
+- A new RMail::Parser::SloppyStartReader that can be used to parse
+  a message that may not actually start on the first line of the input
+  stream, and whose Unix MBOX from line may be escaped with a > (as in
+  ">From").
+
+  This is primarily a convenience for parsing out message/rfc822
+  messages sent by broken mailers.
+
+- RMail::Message#decode can now decode MIME bodies encoded with
+  "uuencode" or "x-uuencode".  These aren't valid according to the
+  RFC, but they are seen in the wild.
+
+  This method now throws an exception for unknown
+  Content-Transfer-Encodings.

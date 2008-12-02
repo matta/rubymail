@@ -45,19 +45,19 @@ compatible changes.
   Instead, I mostly get feature requests and questions from people
   trying to do something new.  Examples:
 
-  - Using RMail and net/pop3 to retrieve email from an ISP.
-  - Using RMail and net/smtp to send email.
-  - Using RMail in a production environment to process abuse@ email
+  - Using RubyMail and net/pop3 to retrieve email from an ISP.
+  - Using RubyMail and net/smtp to send email.
+  - Using RubyMail in a production environment to process abuse@ email
     for a smaller "country code" TLD registrar.
 
-  And who knows what else.  I am surprised every time I see RMail
-  used.  ;-)
+  And who knows what else.  I am surprised every time I see RubyMail used.
+  ;-)
 
-- Parsing efficiency.  I made the parser as efficient as I could.
-  Other mail libraries parse email line by line.  This is OK for most
-  short email, but the random email with a 10 megabyte attachment
-  parses very slowly this way.  Instead, RMail parses data in 16k
-  chunks, so large attachments are parsed efficiently.
+- Parsing efficiency.  I made the parser as efficient as I could.  Other
+  mail libraries parse email line by line.  This is OK for most short
+  email, but the random email with a 10 megabyte attachment parses very
+  slowly this way.  Instead, RubyMail parses data in 16k chunks, so large
+  attachments are parsed efficiently.
 
 - Exception free parsing.  All possible inputs parse into something
   sensible according to the relevant RFC standards.
@@ -72,11 +72,11 @@ compatible changes.
   see in message headers.
 
 - When parsing a 100 megabyte email, at least 100 megabytes of RAM is
-  used, since a parsed RMail::Message object keeps the entire
-  message in a string object.  Fortunately, only one copy is needed
-  (even for nested multipart messages), and RMail's "chunked"
-  parsing technique keeps parsing fast for huge messages.  Still,
-  depending on your requirements, this may disqualify RMail.
+  used, since a parsed RMail::Message object keeps the entire message in a
+  string object.  Fortunately, only one copy is needed (even for nested
+  multipart messages), and RubyMail's "chunked" parsing technique keeps
+  parsing fast for huge messages.  Still, depending on your requirements,
+  this may disqualify RubyMail.
 
 - Documented in English only.
 
@@ -116,7 +116,7 @@ Otherwise, type the following while in the package directory:
 
 You may need special permissions to execute the last line.
 
-If you want to just install RMail to a custom location, you can just
+If you want to just install RubyMail to a custom location, you can just
 copy the lib/rmail subdirectory manually.
 
 = Why?
@@ -132,7 +132,7 @@ You might check out TMail as well.
 
 = Support
 
-To reach the author of RMail, send mail to matt@rfc20.org.
+To reach the author of RubyMail, send mail to matt@rfc20.org.
 
 = License
 

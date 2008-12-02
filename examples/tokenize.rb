@@ -25,26 +25,78 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #++
-# This module allows you to simply
-#  require 'rmail'
-# in your ruby scripts and have all of the RMail module required.
-# This provides maximum convenience when the startup time of your
-# script is not crucial.
-
-# The RMail module contains all of the RubyMail classes, but has no useful
-# API of its own.
+# = Tokenization of an Email
 #
-# See guide/Intro.txt for a general overview of RubyMail.
-module Rmail
+# This script "tokenizes" an email seen on stdin into a set of tokens
+# printed to stdout.  This is the same kind of process used by many
+# "Bayesian" SPAM filters that are popular these days (in early 2003).
+#
+
+require 'rubymail/parser'
+include RubyMail
+
+class TokenizingHandler < Parser::StreamHandler
+  def initialize
+    @tokens = Hash.new(0)
+    @chunk = nil
+  end
+
+  def process_chunk(chunk)
+    if @chunk
+      @chunk << chunk
+    else
+      @chunk = chunk
+    end
+  end
+
+  def finish_chunk
+    if @chunk
+      @chunk.scan(/\w+/) { |w|
+        @tokens[w] += 1 if w.length >= 3
+      }
+    end
+  end
+
+  def header_field(field, name, value)
+  end
+
+  def body_chunk(chunk)
+    process_chunk(chunk)
+  end
+
+  def body_end
+    finish_chunk
+  end
+
+  def preamble_chunk(chunk)
+    process_chunk(chunk)
+  end
+
+  def preamble_end
+    finish_chunk
+  end
+
+  def part_begin
+    finish_chunk
+  end
+
+  def epilogue_chunk(chunk)
+    process_chunk(chunk)
+  end
+
+  def epilogue_end
+    finish_chunk
+  end
+
+  def print_tokens(io)
+    @tokens.keys.sort.each { |t|
+      io.puts "%3d %s" % [ @tokens[t], t.inspect ]
+    }
+  end
+
 end
 
-require 'rmail/address'
-require 'rmail/header'
-require 'rmail/mailbox'
-require 'rmail/message'
-require 'rmail/parser'
-require 'rmail/serialize'
-require 'rmail/utils'
-require 'rmail/mailbox/mboxreader'
-require 'rmail/parser/multipart'
-require 'rmail/parser/pushbackreader'
+
+handler = TokenizingHandler.new
+StreamParser.parse(STDIN, handler)
+handler.print_tokens(STDOUT)

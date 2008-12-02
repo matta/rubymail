@@ -1,5 +1,5 @@
 #--
-#   Copyright (C) 2001, 2002, 2003, 2004 Matt Armstrong.  All rights
+#   Copyright (C) 2001, 2002, 2003, 2004, 2008 Matt Armstrong.  All rights
 #   reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,6 @@ module RMail
     # is parsed for mail addresses and if one is found, it is used to
     # initialize this object.
     def initialize(string = nil)
-
       @local = @domain = @comments = @display_name = nil
 
       unless string.nil?
@@ -418,7 +417,6 @@ module RMail
         # local-part ':' -> it is a display-name of a group
         # display-name '<' -> it is a mailbox display name
         # display-name ':' -> it is a group display name
-        #
 
 	# set lookahead to '@' '<' or ':' (or another value for
 	# invalid input)
@@ -469,6 +467,20 @@ module RMail
 	  @addresses.last.local = get_text
           expect(SYM_AT_SIGN)
           domain
+
+          if @sym == SYM_LESS_THAN
+            # Workaround for invalid input.  Treat 'foo@bar <foo@bar>' as if it
+            # were '"foo@bar" <foo@bar>'.  The domain parser will eat
+            # 'bar' but stop at '<'.  At this point, we've been
+            # parsing the display name as if it were an address, so we
+            # throw the address into display_name and parse an
+            # angle_addr.
+            @addresses.last.display_name =
+              format("%s@%s", @addresses.last.local, @addresses.last.domain)
+            @addresses.last.local = nil
+            @addresses.last.domain = nil
+            angle_addr
+          end
         end
       end
 

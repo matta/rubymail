@@ -37,4 +37,4 @@ Thanks to TMDA for:
   (Mail::AddressTagger).
 
 Joakim Andersson - Initial implementation of the filter method.
-Pavel Kolar - but report (1.8.0 incompatability)
+Pavel Kolar - bug report (1.8.0 incompatability)
