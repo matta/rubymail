@@ -1,3 +1,13 @@
+= Changes in RubyMail 1.0.0 (released 2008-01-05)
+
+- This version differs *only* in the changes required for Ruby 1.9
+  support.  It is otherwise "bug compatible" with version 0.17.  Users
+  of version 0.17 can safely upgrade to 1.0.0.  You will lose the
+  ability to run the tests if you are using Ruby 1.6 (but who is doing
+  that these days?).
+
+- Add a Rakefile.  Add a gem hosted on rubyforge.org.
+
 = Changes in RubyMail 0.17 (released 2004-04-27)
 
 - Handle parsing addresses with non-ASCII display names.  We don't do

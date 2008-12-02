@@ -27,12 +27,12 @@
 #++
 # This module allows you to simply
 #  require 'rmail'
-# in your ruby scripts and have all of the RubyMail module required.
+# in your ruby scripts and have all of the RMail module required.
 # This provides maximum convenience when the startup time of your
 # script is not crucial.
 
-# The RubyMail module contains all of the RubyMail classes, but has no
-# useful API of its own.
+# The RMail module contains all of the RubyMail classes, but has no useful
+# API of its own.
 #
 # See guide/Intro.txt for a general overview of RubyMail.
 module Rmail

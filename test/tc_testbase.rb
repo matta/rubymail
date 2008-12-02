@@ -92,10 +92,6 @@ class TC_TestBase < TestBase
     # Leaving this untested.
   end
 
-  def test_test_nothing
-    # Leaving this untested.
-  end
-
   def test_with_string_in_file
     text = "A string in a file!\n"
     name = ''

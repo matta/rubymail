@@ -30,9 +30,6 @@ path = File.expand_path(File.join(File.dirname($0), '..', 'lib'))
 puts "Prepending #{path} to the $LOAD_PATH"
 $LOAD_PATH.unshift(path)        # get our stuff first
 
-Dir['test/test*.rb'].each {|f|
-  require f
-}
 Dir['test/tc_*.rb'].each {|f|
   require f
 }

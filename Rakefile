@@ -93,7 +93,7 @@ PKG_VERSION = begin
                 version
               end
 
-PKG_FILES = FileList.new('tests/**/*',
+PKG_FILES = FileList.new('test/**/*',
                          'guide/**/*',
                          'lib/**/*',
                          'install.rb',
@@ -101,7 +101,9 @@ PKG_FILES = FileList.new('tests/**/*',
                          'NOTES',
                          'README',
                          'THANKS',
-                         'TODO').exclude(/\bSCCS\b/)
+                         'TODO',
+                         'Rakefile',
+                         'version')
 
 #
 # Teach Rake how to build the RDoc documentation for this package.
@@ -141,13 +143,17 @@ if defined?(Gem)
     unless can_release_package
       s.name += '-unreleased'
     end
-    s.version = PKG_VERSION
+    s.version = PKG_VERSION + if can_release_package
+                                ''
+                              else
+                                '.666'
+                              end
     s.summary = 'A MIME mail parsing and generation library.'
     s.description = <<-EOF
     RubyMail is a lightweight mail library containing various utility
     classes and modules that allow ruby scripts to parse, modify, and
-      generate MIME mail messages.
-      EOF
+    generate MIME mail messages.
+    EOF
 
     s.files = PKG_FILES.to_a
 
@@ -161,13 +167,13 @@ if defined?(Gem)
     s.rdoc_options.concat([ '--title', rdoc.title, '--main', rdoc.main,
                             rdoc.options ].flatten)
 
-    # Oopse, this doesn't work because rubygems doesn't run the tests
-    # from the correct directory.
-    # s.test_files = FileList['tests/test*.rb'].to_a
+    s.test_files = FileList['test/tc_*.rb'].to_a
 
     s.author = "Matt Armstrong"
     s.email = "matt@rfc20.org"
-    s.homepage = "http://www.rfc20.org/rubymail"
+    s.homepage = "http://sites.rfc20.org/rubymail"
+
+    s.rubyforge_project = "rubymail"
   end
 
   #

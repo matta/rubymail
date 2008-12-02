@@ -1,1 +1,0 @@
-Obsolete.  See RFC 2231.txt
