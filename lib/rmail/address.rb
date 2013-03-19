@@ -703,7 +703,7 @@ module RMail
 	    @sym = SYM_DOMAIN_LITERAL
 	    @lexeme = $1.gsub(/(^|[^\\])[\r\n\t ]+/, '\1').gsub(/\\(.)/, '\1')
 	    break
-          when /\A[\200-\377\w!$%&\'*+\/=?^_\`{\}|~#-]+/m
+          when /\A[\200-\377\w!$%&\'*+\/=?^_\`{\}|~#-]+/nm
             # This is just like SYM_ATOM, but includes all characters
             # with high bits.  This is so we can allow such tokens in
             # the display name portion of an address even though it
