@@ -39,7 +39,7 @@ rescue LoadError
 end
 
 class TestBase < Test::Unit::TestCase
-  include Config
+  include RbConfig
 
   attr_reader :scratch_dir
 
