@@ -141,7 +141,7 @@ Second body line
   def test_decode
     message = RMail::Message.new
 
-    all_bytes = ''
+    all_bytes = ''.force_encoding('ASCII-8BIT')
     0.upto(255) do |i|
       all_bytes << i
     end

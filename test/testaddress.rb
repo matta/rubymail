@@ -809,14 +809,14 @@ class TestRMailAddress < TestBase
   def test_invalid_addresses()
     # The display name isn't encoded -- bad, but we parse it.
     validate_case\
-    ["\322\315\322 \312\353\363\341 <bar@foo.invalid>",
-      [ { :name => "\322\315\322 \312\353\363\341",
-	  :display_name => "\322\315\322 \312\353\363\341",
+    ["\322\315\322 \312\353\363\341 <bar@foo.invalid>".force_encoding('ASCII-8BIT'),
+      [ { :name => "\322\315\322 \312\353\363\341".force_encoding('ASCII-8BIT'),
+	  :display_name => "\322\315\322 \312\353\363\341".force_encoding('ASCII-8BIT'),
 	  :address => 'bar@foo.invalid',
 	  :comments => nil,
 	  :domain => 'foo.invalid',
 	  :local => 'bar',
-	  :format => "\"\322\315\322 \312\353\363\341\" <bar@foo.invalid>",
+	  :format => "\"\322\315\322 \312\353\363\341\" <bar@foo.invalid>".force_encoding('ASCII-8BIT'),
 	} ] ]
   end
 
