@@ -73,7 +73,7 @@ module RMail
 
     class Field                 # :nodoc:
       # fixme, document methadology for this (RFC2822)
-      EXTRACT_FIELD_NAME_RE = /\A([^\x00-\x1f\x7f-\xff :]+):\s*/o
+      EXTRACT_FIELD_NAME_RE = /\A([^\x00-\x1f\x7f-\xff :]+):\s*/no
 
       class << self
         def parse(field)
