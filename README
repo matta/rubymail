@@ -1,3 +1,12 @@
+= RubyMail is now maintained elsewhere
+
+Antonio Terceiro has kindly taken ownership of this package at
+https://github.com/terceiro/rmail.
+
+This repository exists for historical interest only.  If you like, take a
+look at the "historical" branch for the very beginnings, almost 20 years
+ago as I write this!
+
 = RubyMail
 
 This is RubyMail, a lightweight mail library containing various
